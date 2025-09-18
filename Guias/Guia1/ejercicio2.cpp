@@ -7,6 +7,10 @@ iteraciones.
 2. Cuantas iteraciones le tomó a cada uno de los métodos en encontrar las raíces con la precisión deseada?. Obtenga
 una gráfica comparativa del error de aproximación de cada método en función del número de
 iteraciones.*/
+
+//Método bisección
+// Método de régula falsi
+
 #include <iostream>
 #include <math.h>
 #include <limits> // Necesario para limpiar el buffer de entrada

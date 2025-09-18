@@ -9,6 +9,10 @@ obtenga una estimación de las raíces de f (x) de manera gráfica.
 como valores iniciales xl = 0 y xu = 1, realice el proceso iterativo hasta que el error de la
 aproximación se encuentre por debajo de 1 × 10−4.
 */
+
+//Método bisección
+// Método de régula falsi
+
 #include <iostream>
 #include <math.h>
 using namespace std;
