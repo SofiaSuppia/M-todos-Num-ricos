@@ -1,34 +1,30 @@
-/*
-Problema 5: La curva formada por un cable colgante se llama catenaria.
-Para este ejercicio, usamos el método de la secante.
-
-Inciso 1:
-Observando la gráfica de f(x) = x * cosh(10 / x) - x - 6, podemos ver que hay una raíz:
-    Raíz aproximada es: 9.189, con un error de 0.001
-    Número de iteraciones: 3
-    Función evaluada en la raíz aproximada es igual a 0.000
-    ✓ El método la secante converge correctamente.
-      - Convergió en 3 iteraciones (< 10000)
-      - f(raíz) = 0.000 está cerca de 0
-Entonces nuestra catenaria que pasa por los puntos (±10, 6) es:
-    y = 9.1889 * cosh(x / 9.1889) - 9.1889
-
-Inciso 2:
-Observando la gráfica de f(x) = x * cosh(12 / x) - x - 5, podemos ver que hay una raíz:
-    Raíz aproximada es: 15.167, con un error de 0.000
-    Número de iteraciones: 4
-    Función evaluada en la raíz aproximada es igual a 0.000
-    ✓ El método la secante converge correctamente.
-      - Convergió en 4 iteraciones (< 10000)
-      - f(raíz) = 0.000 está cerca de 0
-Entonces nuestra catenaria que pasa por los puntos (±12, 5) es:
-    y = 15.167 * cosh(x / 15.167) - 15.167
-*/
-
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* 
+Buscando las raíces de f(x) = 30809.6 * x² - 1026.99 * x³ - 2620861.9
+Se puede observar que hay tres raíces. Descartamos la raíz negativa porque necesitamos encontrar una profundidad (es positiva)
+Usaremos el método de Newton-Raphson:
+
+Raíz aproximada es: 11.861, con un error de 0.000
+Número de iteraciones: 3
+Función evaluada en la raíz aproximada es igual a 0.000
+✓ El método Newton-Raphson converge correctamente.
+  - Convergió en 3 iteraciones (< 10000)
+  - f(raíz) = 0.000 está cerca de 0
+
+Raíz aproximada es: 26.314, con un error de 0.000  
+Número de iteraciones: 3
+Función evaluada en la raíz aproximada es igual a -0.001
+✓ El método Newton-Raphson converge correctamente.
+  - Convergió en 3 iteraciones (< 10000)
+  - f(raíz) = -0.001 está cerca de 0
+
+La primera raíz es la que necesitamos para encontrar la profundidad de la esfera porque 0 < d < 2 * r = 20 cm
+Entonces d = 11.861 cm 
+*/
 
 // Prototipos de funciones
 double f(double x);
@@ -39,16 +35,9 @@ void verificar_convergencia(const char* metodo, int iteraciones, double raiz, in
 
 int main() {
     double x0, x1, x2, error, tolerancia;
-    int max_iteraciones = 0, tipo_error, metodo, inciso;
+    int max_iteraciones = 0, tipo_error, metodo;
 
-    // Seleccionar el inciso
-    printf("Seleccione el inciso:\n");
-    printf("1. Catenaria que pasa por (±10, 6)\n");
-    printf("2. Catenaria que pasa por (±12, 5)\n");
-    printf("Inciso: ");
-    scanf("%d", &inciso);
-
-    // X0 es el valor inicial desde el cual se busca la raíz en el eje x
+    // X0 es el valor inicial desde el cual se busca la raíz en el eje x, aproximándose con una línea recta x cada vez más cerca de la raíz
     printf("Ingrese el valor inicial x0 desde donde comenzará a buscar la raíz: ");
     scanf("%lf", &x0);
     printf("¿Necesita el error porcentual o absoluto? (1 para absoluto, 0 para porcentual): ");
@@ -64,7 +53,7 @@ int main() {
             do {
                 max_iteraciones++;
 
-                // Si la pendiente de la curva es mayor que 1, no converge en tiempo razonable
+                // Si la pendiente de la curva en el punto donde intersecta la línea x con la función es mayor --> no es posible encontrar la raíz en tiempo razonable
                 if(fabs(f_prima(x0)) >= 1) {
                     printf("El método no converge en la iteración %d\n", max_iteraciones);
                     exit(0);
@@ -83,7 +72,7 @@ int main() {
             do {
                 max_iteraciones++;
         
-                // Si la derivada es muy pequeña, puede llevar a división por cero
+                // Si la derivada es muy pequeña, puede llevar a división por cero o convergencia lenta
                 if(fabs(f_prima(x0)) < 1e-6) {
                     printf("La derivada es muy pequeña en la iteración %d\n", max_iteraciones);
                     exit(0);
@@ -100,7 +89,7 @@ int main() {
             break;
 
         case 3: 
-            // Método de la secante - necesita un segundo punto inicial
+            // Método de la secante - necesita un segundo punto inicial (debe estar cerca de la raíz, como x0)
             printf("Ingrese un segundo valor inicial x1 para el método de la secante: ");
             scanf("%lf", &x1);
             
@@ -117,16 +106,6 @@ int main() {
         
             mostrar_resultados("la secante", x2, error, max_iteraciones);
             verificar_convergencia("la secante", max_iteraciones, x2, 10000);
-            
-            // Mostrar la ecuación de la catenaria
-            printf("\nLa ecuación de la catenaria es:\n");
-            if(inciso == 1) {
-                printf("y = %.3lf * cosh(x / %.3lf) - %.3lf\n", x2, x2, x2);
-                printf("Para los puntos (±10, 6)\n");
-            } else {
-                printf("y = %.3lf * cosh(x / %.3lf) - %.3lf\n", x2, x2, x2);
-                printf("Para los puntos (±12, 5)\n");
-            }
             break;
 
         default:
@@ -138,13 +117,9 @@ int main() {
 
 // Definiciones de funciones
 
-// Función f(x) para la catenaria
+// Función f(x) 
 double f(double x) {
-    // Cambiar según el inciso seleccionado
-    // Para obtener el inciso, usamos una variable global o pasamos como parámetro
-    // Por simplicidad, usamos el inciso 2 por defecto
-    return x * cosh(12 / x) - x - 5; // Inciso 2: puntos (±12, 5)
-    // return x * cosh(10 / x) - x - 6; // Para Inciso 1: puntos (±10, 6)
+    return 30809.6 * pow(x, 2) - 1026.99 * pow(x, 3) - 2620861.9;
 }
 
 // Derivada numérica de f(x) usando diferencias finitas
@@ -173,6 +148,7 @@ void mostrar_resultados(const char* metodo, double raiz, double error, int itera
 }
 
 // Función para verificar convergencia
+// Esta función verifica si el método converge y si el valor de la función en la raíz está cerca de cero
 void verificar_convergencia(const char* metodo, int iteraciones, double raiz, int max_iter) {
     double valor_funcion = f(raiz);
     
