@@ -18,7 +18,7 @@
  * @param n Puntero al tamaño del sistema (número de ecuaciones)
  * @return true si el archivo se leyó correctamente, false en caso contrario
  * */
-bool leer_archivo_arreglo(const char* nombre_archivo, double a[][MAX_SIZE+1], double b[], int* n);
+bool read_array_file(const char* nombre_archivo, double a[][MAX_SIZE+1], double b[], int* n);
 
 /**
  * Verifica si la matriz es diagonalmente dominante y que no haya ceros en la diagonal.
@@ -73,12 +73,12 @@ void metodoJacobi(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], 
  * @param Xn X Nuevo = Solución de la matriz
  * @param n Tamaño de los vectores
  * */
-void gaussSeidel(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n);
+void metodoGaussSeidel(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n);
 
 
 /**
- * Implementación del método de Relajación para resolver sistemas lineales
- * Es similar a Gauss-Seidel pero con un factor de relajación omega y una línea de código adicional
+ * Implementación del método de Relajación (SOR) para resolver sistemas lineales
+ * Es similar a Gauss-Seidel pero con un factor de relajación omega.
  * @param a Matriz de coeficientes
  * @param b Vector de términos independientes
  * @param Xv X Antiguo = Iteración previa de la solución
@@ -87,81 +87,77 @@ void gaussSeidel(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], i
  * */
 void metodoRelajacion(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n);
 
-/* Matriz a resolver:
-    Encontramos el siguiente sistema de ecuaciones a resolver:
-    4x - y + z = 7
-    4x - 8y + z = -21
-    -2x + y + 5z = 15
-
-    Tolerancia = 1e-3
-
-En otros términos: 
-A = | 4 -1 1 |
-    | 4 -8 1 |
-    | -2 1 5 |
-
-b = |  7  |
-    | -21 |
-    |  15 |
-    
-
-Aplicaremos Jacobi para resolver el sistema de ecuaciones.
-
-La solución es:
-    x = 1.9999 +- 0.0006
-    y = 3.9998 +- 0.0006 
-    z = 2.9998 +- 0.0006
-
-El método convergió en 9 iteraciones con un error de    0.000555
-
-Aplicaremos Gauss-Seidel para resolver el sistema de ecuaciones.
-
-La solución es:
-    
-    x = 2.2846 +- 0.0004
-    y = 4.1527 +- 0.0004
-    z = 3.0833 +- 0.0004
-
-El método convergió en 7 iteraciones con un error de    0.000359
-Este método converge más rápido que Jacobi en general. Es más eficiente.
-
+/* Inciso a)
 Matriz a resolver:
     Encontramos el siguiente sistema de ecuaciones a resolver:
-    -2x + y + 5z = 15
-    4x - 8y + z = -21
-    4x - y + z = 7
 
-    Tolerancia = 1e-3
+    En otros términos: 
+    A = | 3 1 1 |
+        | 2 6 1 |
+        | 1 1 4 |
 
-En otros términos: 
-A = | -2 1 5 |
-    | 4 -8 1 |
-    | 4 -1 1 |
+    b = | 5 |
+        | 9 |
+        | 6 |
 
-b = |  15 |
-    | -21 |
-    |  7  |
+    Tolerancia = 1e-11
     
 
-Aplicaremos Jacobi para resolver el sistema de ecuaciones.
+    Aplicaremos Jacobi para resolver el sistema de ecuaciones.
 
-Advertencia: La matriz no es diagonalmente dominante en la fila 1.
-Advertencia: La matriz no es diagonalmente dominante en la fila 3.
+    La solución es:
+        x1 = 1
+        x2 = 1
+        x3 = 1
 
-Es por esta razón que el método de Jacobi no converge.
+    El método convergió en 47 iteraciones con un error de 0.0
 
-Aplicaremos Gauss-Seidel para resolver el sistema de ecuaciones.
+    Aplicaremos Gauss-Seidel para resolver el sistema de ecuaciones anterior.
 
-El método no converge, detenemos el proceso.
+    La solución es:
+        x1 = 1
+        x2 = 1
+        x3 = 1
+
+    El método convergió en 14 iteraciones con un error de    0.0
+
+Inciso b)
+Matriz a resolver:
+Encontramos el siguiente sistema de ecuaciones a resolver:
+
+    En otros términos: 
+    A = | 5 7 6 5  |
+        | 7 10 8 7 |
+        | 5 7 9 10 |
+
+    b = | 23 |
+        | 32 |
+        | 33 |
+        | 31 |
+
+    Tolerancia = 1e-4
+
+    ⚠️  Advertencia: La matriz no es diagonalmente dominante en la fila 1.
+    ⚠️  Advertencia: La matriz no es diagonalmente dominante en la fila 2.
+    ⚠️  Advertencia: La matriz no es diagonalmente dominante en la fila 3.
+    ⚠️  Advertencia: La matriz no es diagonalmente dominante en la fila 4.
+    
+
+    Aplicaremos Jacobi para resolver el sistema de ecuaciones. 
+    El método no converge, detenemos el proceso.
+
+
+    Aplicaremos Gauss-Seidel para resolver el sistema de ecuaciones anterior.
+    El método no converge, detenemos el proceso.
 
 */
 
 
 int main(int argc, char const *argv[]) {
     int n, p;
-    double factor, producto, suma, aux;
+    double factor, producto, suma_temp, aux;
     double Xv[MAX_SIZE+1], Xn[MAX_SIZE+1]; // X Antiguo, X Nuevo
-    double tolerancia, error_antiguo, error_nuevo;
+    double tolerancia, error_anterior, error_nuevo;
     int iteraciones;
     double omega;
 
@@ -169,7 +165,7 @@ int main(int argc, char const *argv[]) {
     double a[MAX_SIZE+1][MAX_SIZE+1], b[MAX_SIZE+1], X[MAX_SIZE+1];
 
     // Leer arreglo desde archivo usando la función
-    if(!leer_archivo_arreglo("C:\\Users\\sofim\\OneDrive\\Documentos\\M-todos-Num-ricos\\Guias\\Guia4\\Ejercicio1\\data.dat", a, b, &n)) {
+    if(!read_array_file("C:\\Users\\sofim\\OneDrive\\Documentos\\M-todos-Num-ricos\\Guias\\Guia4\\Ejercicio2\\data.dat", a, b, &n)) {
         return 1;
     }
     
@@ -179,7 +175,7 @@ int main(int argc, char const *argv[]) {
         for(int j = 1; j <= n; j++) {
             printf("%10.6lf ", a[i][j]);  // 10 espacios totales, 6 decimales
         }
-        printf("| %10.6lf\n", b[i]);      // 10 espacios totales, 6 decimales
+        printf("| %10.6lf\n", b[i]);       // 10 espacios totales, 6 decimales
     }
     printf("\n");
 
@@ -192,8 +188,8 @@ int main(int argc, char const *argv[]) {
 
     printf("Elige un método para resolver el sistema:\n");
     printf("1. Método de Jacobi\n");
-    printf("2. Gauss-Seidel\n");
-    printf("3. Método de Relajación\n");
+    printf("2. Método de Gauss-Seidel\n");
+    printf("3. Método de Relajación (SOR)\n");
     printf("Introduce la opción: ");
 
     int opcion;
@@ -204,7 +200,7 @@ int main(int argc, char const *argv[]) {
             metodoJacobi(a, b, Xv, Xn, n);
             break;
         case 2:
-            gaussSeidel(a, b, Xv, Xn, n);
+            metodoGaussSeidel(a, b, Xv, Xn, n);
             break;
         case 3:
             metodoRelajacion(a, b, Xv, Xn, n);
@@ -258,7 +254,7 @@ double calcularError(double Xn[], double Xv[], int n) {
 }
 
 void imprimirSolucion(const char* nombreMetodo, double Xn[], int n, int iteraciones, double error) {
-    printf("------------------SOLUCION DEL %s------------------\n", nombreMetodo);
+    printf("------------------SOLUCIÓN DEL %s------------------\n", nombreMetodo);
     printf("La solución del sistema es:\n");
     for(int i = 1; i <= n; i++) {
         printf("Xn[%d] = %10.6lf\n", i, Xn[i]);
@@ -268,7 +264,7 @@ void imprimirSolucion(const char* nombreMetodo, double Xn[], int n, int iteracio
 
 
 void metodoJacobi(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n) {
-    double suma, tolerancia, error_antiguo, error_nuevo;
+    double suma, tolerancia, error_anterior, error_nuevo;
     int iteraciones;
 
     inicializarEstimacion(Xv, n);
@@ -276,7 +272,7 @@ void metodoJacobi(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], 
     printf("Por favor, introduce la tolerancia:");
     scanf("%lf", &tolerancia);
 
-    error_antiguo = 1000;
+    error_anterior = 1000;
     iteraciones = 0;
 
     do {
@@ -293,12 +289,12 @@ void metodoJacobi(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], 
 
         error_nuevo = calcularError(Xn, Xv, n);
 
-        if(error_nuevo > error_antiguo) {
+        if(error_nuevo > error_anterior) {
             printf("El método no converge, detenemos el proceso.\n");
             return;
         }
 
-        error_antiguo = error_nuevo;
+        error_anterior = error_nuevo;
 
         for(int i = 1; i <= n; i++) {
             Xv[i] = Xn[i];
@@ -308,8 +304,8 @@ void metodoJacobi(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], 
     imprimirSolucion("MÉTODO DE JACOBI", Xn, n, iteraciones, error_nuevo);
 }
 
-void gaussSeidel(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n) {
-    double suma, tolerancia, error_antiguo, error_nuevo;
+void metodoGaussSeidel(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n) {
+    double suma, tolerancia, error_anterior, error_nuevo;
     int iteraciones;
 
     inicializarEstimacion(Xv, n);
@@ -317,47 +313,46 @@ void gaussSeidel(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], i
     printf("Por favor, introduce la tolerancia:");
     scanf("%lf", &tolerancia);
 
-    error_antiguo = 1000;
+    error_anterior = 1000;
     iteraciones = 0;
 
     do {
         iteraciones++;
         for(int i = 1; i <= n; i++) {
-            suma = 0.0;
-            if(i == 1) {
-                for(int j = 2; j <= n; j++) {
-                    suma += a[i][j] * Xv[j];
-                }
-                Xn[i] = (b[i] - suma) / a[i][i];
-            }
+            suma = 0.0;  // Reiniciar suma para cada fila
+            
+            // Sumar elementos antes de la diagonal (usando NUEVOS valores Xn)
             for(int j = 1; j <= i-1; j++) {
                 suma += a[i][j] * Xn[j];
             }
+            
+            // Sumar elementos después de la diagonal (usando ANTIGUOS valores Xv)
             for(int j = i+1; j <= n; j++) {
                 suma += a[i][j] * Xv[j];
             }
+            
             Xn[i] = (b[i] - suma) / a[i][i];
         }
 
         error_nuevo = calcularError(Xn, Xv, n);
 
-        if(error_nuevo > error_antiguo) {
+        if(error_nuevo > error_anterior) {
             printf("El método no converge, detenemos el proceso.\n");
             return;
         }
 
-        error_antiguo = error_nuevo;
+        error_anterior = error_nuevo;
 
         for(int i = 1; i <= n; i++) {
             Xv[i] = Xn[i];
         }
     } while(error_nuevo > tolerancia);
 
-    imprimirSolucion("GAUSS-SEIDEL", Xn, n, iteraciones, error_nuevo);
+    imprimirSolucion("MÉTODO DE GAUSS-SEIDEL", Xn, n, iteraciones, error_nuevo);
 }
 
 void metodoRelajacion(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn[], int n) {
-    double suma, tolerancia, error_antiguo, error_nuevo, omega;
+    double suma, tolerancia, error_anterior, error_nuevo, omega;
     int iteraciones;
 
     inicializarEstimacion(Xv, n);
@@ -368,39 +363,39 @@ void metodoRelajacion(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn
     printf("Por favor, introduce el factor de relajación (0 < omega < 2):");
     scanf("%lf", &omega);
 
-    error_antiguo = 1000;
+    error_anterior = 1000;
     iteraciones = 0;
 
     do {
         iteraciones++;
         for(int i = 1; i <= n; i++) {
-            suma = 0.0;
-            if(i == 1) {
-                for(int j = 2; j <= n; j++) {
-                    suma += a[i][j] * Xv[j];
-                }
-                Xn[i] = (b[i] - suma) / a[i][i];
-            }
+            suma = 0.0;  // Reiniciar suma para cada fila
+            
+            // Sumar elementos antes de la diagonal (usando NUEVOS valores Xn)
             for(int j = 1; j <= i-1; j++) {
                 suma += a[i][j] * Xn[j];
             }
+            
+            // Sumar elementos después de la diagonal (usando ANTIGUOS valores Xv)
             for(int j = i+1; j <= n; j++) {
                 suma += a[i][j] * Xv[j];
             }
-            Xn[i] = (b[i] - suma) / a[i][i];
-
-            // Paso de relajación (Only relaxation step)
-            Xn[i] = (omega * Xn[i]) + ((1 - omega) * Xv[i]);
+            
+            // Calcular el paso de Gauss-Seidel
+            double gauss_seidel = (b[i] - suma) / a[i][i];
+            
+            // Aplicar el factor de relajación (SOR)
+            Xn[i] = omega * gauss_seidel + (1.0 - omega) * Xv[i];
         }
 
         error_nuevo = calcularError(Xn, Xv, n);
 
-        if(error_nuevo > error_antiguo) {
+        if(error_nuevo > error_anterior) {
             printf("El método no converge, detenemos el proceso.\n");
             return;
         }
 
-        error_antiguo = error_nuevo;
+        error_anterior = error_nuevo;
 
         for(int i = 1; i <= n; i++) {
             Xv[i] = Xn[i];
@@ -411,7 +406,7 @@ void metodoRelajacion(double a[][MAX_SIZE+1], double b[], double Xv[], double Xn
 }
 
 
-bool leer_archivo_arreglo(const char* nombre_archivo, double a[][MAX_SIZE+1], double b[], int* n) {
+bool read_array_file(const char* nombre_archivo, double a[][MAX_SIZE+1], double b[], int* n) {
     FILE *fp;
     char c;
     
