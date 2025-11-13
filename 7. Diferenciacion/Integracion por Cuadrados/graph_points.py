@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Read data
-data = np.loadtxt('C:\\Users\\sofim\\OneDrive\\Documentos\\M-todos-Num-ricos\\7. Diferenciacion\\Diferenciacion finita\\output\\results.txt') # Read txt file
+data = np.loadtxt('results.txt') # Read txt file
 x = data[:,0] # First column
 y = data[:,1] # Second column
 

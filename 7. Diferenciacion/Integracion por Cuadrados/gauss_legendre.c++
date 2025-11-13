@@ -2,95 +2,107 @@
 #include <stdlib.h>
 #include <math.h>
 
-// Máximo número de puntos de datos a leer (para el Spline)
+// Maximo numero de puntos de datos a leer (para el Spline)
 #define MAX_POINTS 20 
-// Tamaño máximo de la matriz para la Eliminación Gaussiana
+// Tamano maximo de la matriz para la Eliminacion Gaussiana
 #define MAX_SIZE 100 
 
-// Incluye la función de Eliminación Gaussiana para resolver el sistema Ax=b
+// Incluye la funcion de Eliminacion Gaussiana para resolver el sistema Ax=b
 #include "gauss.h"
 
 /**
- * @brief Función para definir la función f(x) o, si hay datos, la evalúa usando el Spline.
- * @param x El punto en el que se evalúa la función.
- * @return El valor de la función en x.
+ * @brief Funcion para definir la funcion f(x) o, si hay datos, la evalua usando el Spline.
+ * @param x El punto en el que se evalua la funcion.
+ * @return El valor de la funcion en x.
  */
 double f(double x);
 
 /**
- * @brief Función para leer pares de datos (Xi, Yi) de un archivo.
- * Formato esperado: la primera línea contiene el número de puntos, seguido de pares xi yi.
+ * @brief Funcion para leer pares de datos (Xi, Yi) de un archivo.
+ * Formato esperado: la primera linea contiene el numero de puntos, seguido de pares xi yi.
  * @param filename Nombre del archivo a leer.
  * @param X Array para almacenar los valores de X.
  * @param Y Array para almacenar los valores de Y.
- * @param n Puntero para almacenar el número de puntos de datos leídos.
- * @return 1 si tiene éxito, 0 en caso contrario.
+ * @param n Puntero para almacenar el numero de puntos de datos leidos.
+ * @return 1 si tiene exito, 0 en caso contrario.
  */
 int read_data_points(const char* filename, double X[], double Y[], int* n);
 
 /**
- * @brief Función para mostrar los puntos de datos.
+ * @brief Funcion para mostrar los puntos de datos.
  * @param X Array de valores de X.
  * @param Y Array de valores de Y.
- * @param n Número de puntos de datos.
+ * @param n Numero de puntos de datos.
  */
 void print_data_points(double X[], double Y[], int n);
 
 /**
- * @brief Función para evaluar el Spline Cúbico en un punto x dado.
+ * @brief Funcion para evaluar el Spline Cubico en un punto x dado.
  * @param X Array de valores X (puntos de datos).
  * @param solution Array de coeficientes del Spline.
- * @param n Número de puntos de datos.
+ * @param n Numero de puntos de datos.
  * @param x El valor x a evaluar.
  * @return El valor y interpolado.
  */
 double evaluate_spline(double X[], double solution[], int n, double x);
 
-/* Comentarios sobre Cuadratura de Gauss-Legendre (Resumen de uso y precisión):
+/* Comentarios sobre Cuadratura de Gauss-Legendre (Resumen de uso y precision):
     2 puntos: Exacto para polinomios de grado <= 3. Ideal para funciones muy suaves.
-    3 puntos: Exacto para polinomios de grado <= 5. Óptimo equilibrio entre precisión y eficiencia.
+    3 puntos: Exacto para polinomios de grado <= 5. Optimo equilibrio entre precision y eficiencia.
     4 puntos: Exacto para polinomios de grado <= 7. Para mayor curvatura y complejidad.
     5 puntos: Exacto para polinomios de grado <= 9. Para funciones altamente oscilatorias.
     6 puntos: Exacto para polinomios de grado <= 11. Para funciones extremadamente complejas.
 */
 
-// Variables globales para almacenar los datos del Spline para la integración
+// Variables globales para almacenar los datos del Spline para la integracion
 double spline_X[MAX_POINTS];
 double spline_solution[MAX_SIZE + 1];
 int spline_n = 0;
 
 int main(int argc, char const *argv[]) {
-    // Factores de ponderación (pesos) y argumentos (raíces) para Gauss-Legendre
+    // Factores de ponderacion (pesos) y argumentos (raices) para Gauss-Legendre
     double c0, c1, c2, c3, c4, c5;
     double x0, x1, x2, x3, x4, x5;
-    // Número de puntos para la Cuadratura de Gauss-Legendre
+    // Numero de puntos para la Cuadratura de Gauss-Legendre
     int number_of_points;
     // Resultado de la integral
     double integral;
 
-    // Arrays para el cálculo de los coeficientes del Spline (sistema Ax=b)
+    // Arrays para el calculo de los coeficientes del Spline (sistema Ax=b)
     double A[MAX_SIZE+1][MAX_SIZE+1], b[MAX_SIZE+1], solution[MAX_SIZE+1];
-    // Puntos de datos leídos del archivo de texto
+    // Puntos de datos leidos del archivo de texto
     double X[MAX_POINTS], Y[MAX_POINTS];
-    // Número de puntos de datos
+    // Numero de puntos de datos
     int n;
-    // Límites de integración [a, b]
+    // Limites de integracion [a, b]
     double a_limit, b_limit;
-    // Opción: función explícita o tabla de datos
+    // Opcion: funcion explicita o tabla de datos
     int choice;
+    char continuar;
 
-    printf("¿Tiene una función o una tabla de datos?\n");
-    printf("1. Tengo una tabla de datos\n");
-    printf("2. Tengo una función (f(x) por defecto será x*x)\n");
-    scanf("%d", &choice);
+    printf("========================================================\n");
+    printf("  INTEGRACION NUMERICA - CUADRATURA GAUSS-LEGENDRE\n");
+    printf("========================================================\n");
+    printf("Funcion actual: f(x) = 2*x^3\n\n");
+
+    do {
+        // Resetear spline_n para cada iteracion
+        spline_n = 0;
+
+        printf("Tiene una funcion o una tabla de datos?\n");
+        printf("1. Tengo una tabla de datos\n");
+        printf("2. Tengo una funcion (f(x) por defecto sera 2*x^3)\n");
+        printf("--------------------------------------------------------\n");
+        printf("Ingrese su eleccion: ");
+        scanf("%d", &choice);
 
     if(choice == 1) {
-        // --- PROCESAMIENTO DEL SPLINE CÚBICO ---
+        // --- PROCESAMIENTO DEL SPLINE CUBICO ---
         
         // 1. Lectura de datos
-        if (!read_data_points("data.txt", X, Y, &n)) {
+        if (!read_data_points("../data.txt", X, Y, &n)) {
             printf("Error al leer los datos del archivo. Saliendo.\n");
-            return 1;
+            continue;
         }
         print_data_points(X, Y, n);
 
@@ -102,7 +114,7 @@ int main(int argc, char const *argv[]) {
             }
         }
 
-        // --- CONSTRUCCIÓN DE LAS ECUACIONES DEL SISTEMA Ax=b ---
+        // --- CONSTRUCCION DE LAS ECUACIONES DEL SISTEMA Ax=b ---
 
         // 2(n-1) Ecuaciones: Cada Spline S_k debe pasar por sus dos puntos finales (X_k, Y_k) y (X_{k+1}, Y_{k+1})
         for(int k = 0; k < n-1; k++) {
@@ -155,7 +167,7 @@ int main(int argc, char const *argv[]) {
         A[row1][1] = 2;
         b[row1] = 0.0;
 
-        // S''_{n-2}(X_{n-1}) = 0 (último Spline)
+        // S''_{n-2}(X_{n-1}) = 0 (ultimo Spline)
         A[row2][4*(n-2)] = 6 * X[n-1];
         A[row2][4*(n-2)+1] = 2;
         b[row2] = 0.0;
@@ -170,18 +182,18 @@ int main(int argc, char const *argv[]) {
         for (int i = 0; i < 4*(n-1); i++) {
             spline_solution[i] = solution[i];
         }
-        spline_n = n; // Indica que se usará el Spline en f(x)
+        spline_n = n; // Indica que se usara el Spline en f(x)
     }
 
-    // --- INTEGRACIÓN POR CUADRATURA DE GAUSS-LEGENDRE ---
+    // --- INTEGRACION POR CUADRATURA DE GAUSS-LEGENDRE ---
 
-    printf("Inserte los límites de integración (a b):\n");
+    printf("\nInserte los limites de integracion (a b):\n");
     scanf("%lf %lf", &a_limit, &b_limit);
 
-    printf("Inserte el número de puntos de Gauss-Legendre (entre 2 y 6):\n");
+    printf("Inserte el numero de puntos de Gauss-Legendre (entre 2 y 6):\n");
     scanf("%d", &number_of_points);
 
-    // Transformación de variable: integral en [a, b] a integral en [-1, 1]
+    // Transformacion de variable: integral en [a, b] a integral en [-1, 1]
     // Argumento transformado para f(x): ((b-a) * x_i + (b+a)) / 2
     // Factor de escalamiento: (b-a) / 2
     double scale_factor = (b_limit - a_limit) / 2.0;
@@ -189,7 +201,7 @@ int main(int argc, char const *argv[]) {
 
     switch(number_of_points) {
         case 2: 
-            // 2-puntos: Pesos (c_i) y Raíces (x_i)
+            // 2-puntos: Pesos (c_i) y Raices (x_i)
             c0 = 1.0; c1 = 1.0;
             x0 = -0.577350269; x1 = 0.577350269;
             integral = scale_factor * (
@@ -244,22 +256,33 @@ int main(int argc, char const *argv[]) {
             );
             break;
         default:
-            printf("Error: El número de puntos debe estar entre 2 y 6\n");
-            exit(0);
+            printf("Error: El numero de puntos debe estar entre 2 y 6\n");
+            continue;
     }
 
-    printf("El valor aproximado de la integral es: %lf\n", integral);
+    printf("\nEl valor aproximado de la integral es: %lf\n", integral);
+
+    printf("\n--------------------------------------------------------\n");
+    printf("Desea realizar otro calculo? (s/n): ");
+    scanf(" %c", &continuar);
+    printf("\n");
+
+    } while (continuar == 's' || continuar == 'S');
+
+    printf("Gracias por usar el programa!\n");
+    printf("========================================================\n");
     return 0;
 }
 
 
 double f(double x) {
-    // Si se cargó un Spline (spline_n > 0), evaluamos el Spline en x.
+    // Si se cargo un Spline (spline_n > 0), evaluamos el Spline en x.
     if(spline_n > 0) {
         return evaluate_spline(spline_X, spline_solution, spline_n, x);
     }
-    // Si no se cargó un Spline (opción 2), por defecto usamos una función de prueba.
-    return x * x; 
+    // Si no se cargo un Spline (opcion 2), por defecto usamos una funcion de prueba.
+    // Aca se ingresa la funcion a evaluar
+    return 2.0 * (x * x * x); 
 }
 
 
@@ -274,15 +297,15 @@ int read_data_points(const char* filename, double X[], double Y[], int* n) {
     
     printf("Archivo '%s' abierto correctamente\n", filename);
     
-    // Leer el número de puntos de datos
+    // Leer el numero de puntos de datos
     if (fscanf(fp, "%d", n) != 1) {
-        printf("Error: No se pudo leer el número de puntos de datos\n");
+        printf("Error: No se pudo leer el numero de puntos de datos\n");
         fclose(fp);
         return 0;
     }
     
     if (*n <= 0 || *n > MAX_POINTS) {
-        printf("Error: Número de puntos inválido (%d). Máximo permitido: %d\n", *n, MAX_POINTS);
+        printf("Error: Numero de puntos invalido (%d). Maximo permitido: %d\n", *n, MAX_POINTS);
         fclose(fp);
         return 0;
     }
