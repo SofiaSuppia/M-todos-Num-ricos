@@ -3,7 +3,7 @@
 
 // Definir g(x)
 double g(double x) {
-    return sqrt(sin(sqrt(x))); // Ejemplo: cambiar según problema
+    return exp(-x) ; // g(x) = e^{-e^{\sin(x)}}
 }
 
 // Derivada aproximada g'(x)
@@ -13,29 +13,29 @@ double gp(double x) {
 }
 
 int main() {
-    double x0, x1, tolerancia, error;
+    double xviejo, xnuevo, tolerancia, error;
     int i = 0;
 
-    printf("Ingrese x0: ");
-    scanf("%lf", &x0);
+    printf("Ingrese xviejo: ");
+    scanf("%lf", &xviejo);
     printf("Ingrese tolerancia: ");
     scanf("%lf", &tolerancia);
 
     // Verificar criterio de convergencia
-    if (fabs(gp(x0)) >= 1) {
-        printf("El metodo no converge porque |g'(x0)| >= 1\n");
+    if (fabs(gp(xviejo)) >= 1) {
+        printf("El metodo no converge porque |g'(xviejo)| >= 1\n");
         return 0;
     }
 
     do {
         i++;
-        x1 = g(x0);
-        error = fabs((x1 - x0) / x1) * 100; // Error porcentual estimado
-        printf("Iteracion %d: x = %.6lf, error = %.6lf%%\n", i, x1, error);
-        x0 = x1;
-    } while (error > tolerancia);
+        xnuevo = g(xviejo);
+        error = fabs((xnuevo - xviejo)); // Error absoluto estimado   error = %.6lf%%
+        printf("Iteracion %d: x = %.6lf, error = %.6lf\n", i, xnuevo, error);
+        xviejo = xnuevo;
+    } while (tolerancia < error);
 
-    printf("\nRaiz aproximada: %.6lf\n", x1);
+    printf("\nRaiz aproximada: %.6lf\n", xnuevo);
     printf("Error final: %.6lf%%\n", error);
     printf("Iteraciones: %d\n", i);
 

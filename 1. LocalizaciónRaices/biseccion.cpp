@@ -1,26 +1,25 @@
-#include <iostream>
+#include <cstdio>
 #include <math.h>
-using namespace std;
 
 // Definir la función f(x)
 double f(double x) {
-    return 5 * x - 3; // Ejemplo de la hoja
+    return log(x) + exp(sin(x)) - x; // Ejemplo de la hoja
 }
 
 int main() {
-    double a, b, tolerancia, c, c_viejo, error;
+    double a, b, tolerancia, c_nuevo, c_viejo, error;
     int iteraciones = 0;
 
-    cout << "Ingrese a: ";
-    cin >> a;
-    cout << "Ingrese b: ";
-    cin >> b;
-    cout << "Ingrese tolerancia (%): ";
-    cin >> tolerancia;
+    printf("Ingrese a: ");
+    scanf("%lf", &a);
+    printf("Ingrese b: ");
+    scanf("%lf", &b);
+    printf("Ingrese tolerancia (%%): ");
+    scanf("%lf", &tolerancia);
 
     // Verificar si hay raíz en el intervalo
     if (f(a) * f(b) > 0) {
-        cout << "No hay raiz en el intervalo [" << a << ", " << b << "]\n";
+        printf("No hay raiz en el intervalo [%.6f, %.6f]\n", a, b);
         return 0;
     }
 
@@ -28,14 +27,14 @@ int main() {
 
     do {
         // Punto medio
-        c = (a + b) / 2.0;
+        c_nuevo = (a + b) / 2.0;
         iteraciones++;
 
         // Determinar en qué subintervalo está la raíz
-        if (f(a) * f(c) > 0)
-            a = c;
-        else if (f(a) * f(c) < 0)
-            b = c;
+        if (f(a) * f(c_nuevo) > 0)
+            a = c_nuevo;
+        else if (f(a) * f(c_nuevo) < 0)
+            b = c_nuevo;
         else {
             // Encontramos la raíz exacta
             error = 0;
@@ -43,14 +42,14 @@ int main() {
         }
 
         // Calcular error porcentual estimado
-        error = fabs((c - c_viejo) / c) * 100;
-        c_viejo = c;
+        error = fabs((c_nuevo - c_viejo) / c_nuevo) * 100;
+        c_viejo = c_nuevo;
 
     } while (error > tolerancia);
 
-    cout << "La raiz es: " << c << endl;
-    cout << "Con un error de: " << error << "%" << endl;
-    cout << "Iteraciones: " << iteraciones << endl;
+    printf("La raiz es: %f\n", c_nuevo);
+    printf("Con un error de: %f%%\n", error);
+    printf("Iteraciones: %d\n", iteraciones);
 
     return 0;
 }
