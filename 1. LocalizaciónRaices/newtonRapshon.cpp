@@ -12,6 +12,8 @@ double df(double x) {
     return (f(x + h) - f(x)) / h;
 }
 
+// x0 es lo mismo que decis xviejo, x1 es lo mismo que decis xnuevo
+
 int main() {
     double x0, x1, tolerancia, error;
     int i = 0;

@@ -6,6 +6,8 @@ double f(double x) {
     return pow(x, 3) - 9 * x + 3; // Ejemplo, cámbialo según el problema
 }
 
+//x0 es viejo, x1 es xviejoviejo (x-1), x2 es xnuevo
+
 int main() {
     double x0, x1, x2, tolerancia, error;
     int i = 0;
@@ -20,6 +22,7 @@ int main() {
     do {
         i++;
 
+        // PREGUNTAR, TENGO DUDAS
         // Evitar división por cero
         if (fabs(f(x1) - f(x0)) < 1e-12) {
             printf("Diferencia muy pequena entre f(x1) y f(x0). El metodo no puede continuar.\n");
@@ -27,7 +30,7 @@ int main() {
         }
 
         // Fórmula de la secante
-        x2 = x1 - f(x1) * (x1 - x0) / (f(x1) - f(x0));
+        x2 = x1 - (f(x1) * (x1 - x0) / (f(x1) - f(x0)));
 
         // Calcular error absoluto
         error = fabs(x2 - x1);
