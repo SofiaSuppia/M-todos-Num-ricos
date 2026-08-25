@@ -28,6 +28,6 @@ def graficar_matplot(f_py, etiqueta_f, valores_iniciales, x_min=-5, x_max=5):
     plt.show()
 
 # Uso
-f_py = lambda x:  x**10 - 1
-graficar_matplot(f_py, "x^10 - 1", valores_iniciales=[0.1, 2])
+f_py = lambda x:  np.cos(np.sin(x))
+graficar_matplot(f_py, "cos(sin(x))", valores_iniciales=[0.1, 2])
 

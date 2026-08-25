@@ -3,7 +3,7 @@
 
 // Definir g(x)
 double g(double x) {
-    return exp(-x) ; // g(x) = e^{-e^{\sin(x)}}
+    return pow(x, 5) - 3*pow(x, 3) - 2*pow(x, 2) + 2 ; // g(x) = e^{-e^{\sin(x)}}
 }
 
 // Derivada aproximada g'(x)
