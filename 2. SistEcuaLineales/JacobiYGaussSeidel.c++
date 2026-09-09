@@ -9,14 +9,19 @@ using namespace std;
 #define FIL 2 //cambiar para ingresar los "b"
 #define COL 2
 
+// Programa principal que resuelve un sistema de ecuaciones lineales
+// mediante los métodos iterativos de Jacobi y Gauss-Seidel.
 int main(int argc, char const *argv[])
 {
     
     int i=0,j=0,opcion=0,iteracion=0;
     double b[FIL]={0},x0[FIL]={0},xv[FIL]={0},e=1,tol=0,suma=0;
 
+    // Archivo que contiene la matriz del sistema lineal
     FILE *fp;
     char ch;
+
+    // Se abre la matriz desde un archivo de texto
     fp = fopen("SistEcuaLineales/matriz.dat","r");
     if ( fp == NULL )
     {
@@ -24,7 +29,7 @@ int main(int argc, char const *argv[])
 		return 1;
     }
 
-    //contador de filas
+    // Se cuenta cuántas filas tiene la matriz para dimensionar el arreglo
     int filas=0;
     char c;
     int maxValues = 0;
@@ -39,13 +44,14 @@ int main(int argc, char const *argv[])
 
     printf("numero de filas=%i\n",filas);
 
-    //cerramos y reabrimos el archivo para resetear el puntero
+    // Se vuelve a abrir el archivo para reiniciar el puntero de lectura
+    // y luego guardar los datos en un arreglo bidimensional
     fclose(fp);
     fp = fopen("SistEcuaLineales/matriz.dat","r");
     double arreglo[filas][100]={0};
 
 
-    //Cargo los datos leidos en el array
+    // Se cargan los números leídos del archivo en la matriz 'arreglo'
     
 	for(i = 0; i < filas; i++) {
 		j = 0;
@@ -58,7 +64,8 @@ int main(int argc, char const *argv[])
 	columnas = j;
 	
 	printf("numero de columnas= %i\n",columnas);
-    //imprimo la matriz para verificar que lo leyo correctamente
+
+    // Se imprime la matriz para verificar que la lectura fue correcta
     
         for(i=0;i<filas;i++)
     {
@@ -69,12 +76,14 @@ int main(int argc, char const *argv[])
         printf("\n");
     }
 
+    // Se solicitan los valores del vector b del sistema Ax = b
     printf("\n---Carga de los b---");
         for(i= 0; i < FIL; i++){
             printf("\nb[%d]= ",i);
             scanf("%lf",&b[i]);
         }
 
+    // Menú principal para elegir el método iterativo a aplicar
     do
     {
         
@@ -89,10 +98,11 @@ int main(int argc, char const *argv[])
 
             case 1:
 
-            
+            // Método iterativo de Jacobi
             printf("\nIngrese tolerancia: ");
             scanf("%lf",&tol);
 
+            // Verifica si la matriz puede converger: diagonal dominante y diagonal no nula
             for(i=0;i<FIL;i++){
 
                 suma=0;
@@ -113,6 +123,7 @@ int main(int argc, char const *argv[])
             
             iteracion=0;
 
+            // Repetición de las iteraciones del método de Jacobi hasta alcanzar la tolerancia
             do
             {
                 iteracion++;
@@ -124,6 +135,7 @@ int main(int argc, char const *argv[])
                             suma=suma+arreglo[i][j]*xv[j];
                         }
                     }
+                    // Fórmula del método de Jacobi para calcular la nueva aproximación
                     x0[i]=(b[i]-suma)/arreglo[i][i];
                     error=error+pow((x0[i]-xv[i]),2);
                     xv[i]=x0[i];
@@ -134,6 +146,7 @@ int main(int argc, char const *argv[])
                 printf("\n");
             } while (e > tol && iteracion < 10000 );
             
+            // Muestra la solución obtenida por Jacobi
             for(i=0;i<FIL;i++){
 
                 printf("\nX0[%d]: %lf",i+1,x0[i]);
@@ -150,9 +163,11 @@ int main(int argc, char const *argv[])
 
             case 2:
             
+            // Método iterativo de Gauss-Seidel
             printf("\nIngrese tolerancia: ");
             scanf("%lf",&tol);
 
+            // Verifica la convergencia de la matriz antes de iterar
             for(i=0;i<FIL;i++){
 
                 suma=0;
@@ -173,6 +188,7 @@ int main(int argc, char const *argv[])
             
             iteracion=0;
 
+            // Repetición de las iteraciones del método de Gauss-Seidel
             do
             {
                 iteracion++;
@@ -180,11 +196,13 @@ int main(int argc, char const *argv[])
                 for(i=0;i<FIL;i++){
                     suma=0;
                 if(i==0){
+                    // Se usan valores actuales de las demás incógnitas para la primera fila
                     for(j=1;j<COL;j++){
                         suma=suma+arreglo[i][j]*xv[j];
                     }
                     x0[i]=(b[i]-suma)/(arreglo[i][i]);
                 }else{
+                    // Se aprovechan los valores ya actualizados de x0 para acelerar la convergencia
                     for(j=0;j<i;j++){
                         suma=suma+arreglo[i][j]*x0[j];
                     }
@@ -204,6 +222,7 @@ int main(int argc, char const *argv[])
                 printf("\n");
             } while (e > tol && iteracion < 10000 );
             
+            // Muestra la matriz y la solución final obtenida por Gauss-Seidel
             printf("\n--Matriz resuelta--\n");
 					
 				for(i=0;i<filas;i++)
@@ -234,6 +253,6 @@ int main(int argc, char const *argv[])
     } while (opcion != 3);
     
 
-
+    // Fin del programa
     return 0;
 }

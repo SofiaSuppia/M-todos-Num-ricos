@@ -9,7 +9,12 @@ using namespace std;
 double f(double x){
     return x*x; //funcion a interpolar
 }
- 
+
+// SOLO MUESTRA EL VALOR INTERPOLADO, EL ERROR ABSOLUTO Y EL ERROR RELATIVO, 
+//NO MUESTRA LA MATRIZ NI LOS DATOS DE ENTRADA Y NO MUETSRA EL POLINOMIO INTERPOLANTE
+//AGREGAR EL TEMA DE LA LECTURA DE DATOS DESDE UN ARCHIVO
+//SOLO SE HACE CON FUNCION
+
 int main(int argc, char const *argv[])
 {
     int i=0, j=0, k=0, opcion=0;
