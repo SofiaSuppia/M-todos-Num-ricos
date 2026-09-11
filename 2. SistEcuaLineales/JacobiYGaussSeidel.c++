@@ -1,258 +1,327 @@
-#include <stdio.h>
-#include <limits.h>
-#include <float.h>
-#include <math.h>
+#include <cstdio>
+#include <cmath>
 #include <iostream>
+
+#define MAX_SIZE 50
 
 using namespace std;
 
-#define FIL 2 //cambiar para ingresar los "b"
-#define COL 2
-
-// Programa principal que resuelve un sistema de ecuaciones lineales
-// mediante los métodos iterativos de Jacobi y Gauss-Seidel.
-int main(int argc, char const *argv[])
-{
-    
-    int i=0,j=0,opcion=0,iteracion=0;
-    double b[FIL]={0},x0[FIL]={0},xv[FIL]={0},e=1,tol=0,suma=0;
-
-    // Archivo que contiene la matriz del sistema lineal
+// ============================================================
+// Funcion para leer la matriz aumentada desde un archivo.
+// Formato esperado del archivo (una fila por ecuacion):
+//   a11 a12 ... a1n b1
+//   a21 a22 ... a2n b2
+//   ...
+//   an1 an2 ... ann bn
+//
+// @param filename  nombre del archivo a leer
+// @param a         matriz de coeficientes (n x n)
+// @param b         vector de terminos independientes
+// @param n         puntero donde se guarda el tamanio del sistema
+// @return          true si se leyo correctamente, false si hubo error
+// ============================================================
+bool read_array_file(const char* filename, double a[][MAX_SIZE], double b[], int* n) {
     FILE *fp;
-    char ch;
 
-    // Se abre la matriz desde un archivo de texto
-    fp = fopen("SistEcuaLineales/matriz.dat","r");
-    if ( fp == NULL )
-    {
-        perror( "No se puede abrir el archivo");
-		return 1;
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        printf("Error: no se puede abrir el archivo '%s'\n", filename);
+        return false;
     }
 
-    // Se cuenta cuántas filas tiene la matriz para dimensionar el arreglo
-    int filas=0;
-    char c;
-    int maxValues = 0;
-	int columnas;
-    
-    while((c = fgetc(fp)) != EOF)
-    {
-        if(c == '\n'){
-            filas++;
-		}
+    printf("Archivo '%s' abierto correctamente\n\n", filename);
+
+    // Se cuentan las filas para saber el tamanio del sistema
+    int rows = 0;
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        rows++;
     }
 
-    printf("numero de filas=%i\n",filas);
+    *n = rows;
+    printf("Tamanio del sistema: %d x %d\n", *n, *n);
 
-    // Se vuelve a abrir el archivo para reiniciar el puntero de lectura
-    // y luego guardar los datos en un arreglo bidimensional
+    if (*n > MAX_SIZE) {
+        printf("Error: sistema demasiado grande (%d). Maximo permitido: %d\n", *n, MAX_SIZE);
+        fclose(fp);
+        return false;
+    }
+
+    // Se cierra y reabre el archivo para reiniciar el puntero de lectura
     fclose(fp);
-    fp = fopen("SistEcuaLineales/matriz.dat","r");
-    double arreglo[filas][100]={0};
+    fp = fopen(filename, "r");
 
-
-    // Se cargan los números leídos del archivo en la matriz 'arreglo'
-    
-	for(i = 0; i < filas; i++) {
-		j = 0;
-		do {
-        fscanf(fp, "%lf", &(arreglo[i][j]));
-        j++;
-			} while((c = fgetc(fp)) != '\n');
-	}
-
-	columnas = j;
-	
-	printf("numero de columnas= %i\n",columnas);
-
-    // Se imprime la matriz para verificar que la lectura fue correcta
-    
-        for(i=0;i<filas;i++)
-    {
-        for(j=0;j<columnas;j++)
-        {
-            printf("%lf ",arreglo[i][j]);
+    // Se lee la matriz aumentada: n coeficientes + 1 termino independiente por fila
+    for (int i = 0; i < *n; i++) {
+        for (int j = 0; j < *n; j++) {
+            if (fscanf(fp, "%lf", &a[i][j]) != 1) {
+                printf("Error al leer elemento a[%d][%d]\n", i, j);
+                fclose(fp);
+                return false;
+            }
         }
-        printf("\n");
+        if (fscanf(fp, "%lf", &b[i]) != 1) {
+            printf("Error al leer termino independiente b[%d]\n", i);
+            fclose(fp);
+            return false;
+        }
     }
 
-    // Se solicitan los valores del vector b del sistema Ax = b
-    printf("\n---Carga de los b---");
-        for(i= 0; i < FIL; i++){
-            printf("\nb[%d]= ",i);
-            scanf("%lf",&b[i]);
+    fclose(fp);
+    printf("Matriz leida correctamente\n\n");
+    return true;
+}
+
+// ============================================================
+// Verifica si la matriz es diagonalmente dominante.
+// Para cada fila i: |a[i][i]| > suma(|a[i][j]|, j!=i)
+// Tambien verifica que no haya ceros en la diagonal.
+// ============================================================
+bool checkDiagonalDominance(double a[][MAX_SIZE], int n) {
+    for (int i = 0; i < n; i++) {
+        // Si hay cero en la diagonal, no se puede dividir
+        if (fabs(a[i][i]) == 0.0) {
+            printf("Error: cero en la diagonal en a[%d][%d]\n", i, i);
+            return false;
         }
 
-    // Menú principal para elegir el método iterativo a aplicar
-    do
-    {
-        
-        printf("\n---MENU---");
+        // Suma de los valores absolutos de los elementos fuera de la diagonal
+        double suma = 0.0;
+        for (int j = 0; j < n; j++) {
+            if (j != i) {
+                suma += fabs(a[i][j]);
+            }
+        }
+
+        // Si no es diagonalmente dominante, solo avisa (no cancela)
+        if (fabs(a[i][i]) < suma) {
+            printf("Aviso: la matriz NO es diagonalmente dominante en la fila %d\n", i);
+        }
+    }
+    return true;
+}
+
+// ============================================================
+// Inicializa un vector con todos sus elementos en cero
+// ============================================================
+void initializeVector(double v[], int n) {
+    for (int i = 0; i < n; i++) {
+        v[i] = 0.0;
+    }
+}
+
+// ============================================================
+// Calcula el error entre dos vectores (norma euclidea)
+// error = sqrt( sum( (xn[i] - xv[i])^2 ) )
+// ============================================================
+double computeError(double xn[], double xv[], int n) {
+    double error = 0.0;
+    for (int i = 0; i < n; i++) {
+        error += pow(xn[i] - xv[i], 2);
+    }
+    return sqrt(error);
+}
+
+// ============================================================
+// Metodo de Jacobi
+//
+// En Jacobi se usan SOLO los valores de la iteracion anterior (xv)
+// para calcular todos los valores nuevos (xn). Despues se copian.
+//
+// Formula: xn[i] = (b[i] - sum(a[i][j]*xv[j], j!=i)) / a[i][i]
+//
+// Diferencia con Gauss-Seidel: Jacobi usa siempre los valores
+// VIEJOS, Gauss-Seidel usa los valores NUEVOS que ya se calcularon.
+// ============================================================
+void jacobiMethod(double a[][MAX_SIZE], double b[], double xv[], double xn[], int n) {
+    double tolerance;
+    int iterations = 0;
+    double old_error, new_error;
+
+    initializeVector(xv, n);
+
+    printf("\nIngrese tolerancia: ");
+    scanf("%lf", &tolerance);
+
+    old_error = 1000.0;
+
+    do {
+        iterations++;
+
+        // Se calculan TODOS los xn usando SOLO los valores viejos xv
+        for (int i = 0; i < n; i++) {
+            double suma = 0.0;
+            for (int j = 0; j < n; j++) {
+                if (j != i) {
+                    suma += a[i][j] * xv[j];
+                }
+            }
+            xn[i] = (b[i] - suma) / a[i][i];
+        }
+
+        // Se calcula el error entre las dos iteraciones
+        new_error = computeError(xn, xv, n);
+
+        // Verificacion de convergencia: si el error crece, no converge
+        if (new_error > old_error) {
+            printf("\nEl metodo NO converge (el error crece).\n");
+            printf("Iteraciones: %d, Error: %.12lf\n", iterations, new_error);
+            return;
+        }
+
+        old_error = new_error;
+
+        // RECIEN ACA se copian los valores nuevos a xv para la proxima iteracion
+        for (int i = 0; i < n; i++) {
+            xv[i] = xn[i];
+        }
+
+        printf("iter %d  error: %.12lf\n", iterations, new_error);
+
+    } while (new_error > tolerance && iterations < 10000);
+
+    // Se muestra la solucion
+    printf("\n--- SOLUCION (Jacobi) ---\n");
+    for (int i = 0; i < n; i++) {
+        printf("x[%d] = %lf\n", i, xn[i]);
+    }
+    printf("Error: %.12lf\n", new_error);
+    printf("Iteraciones: %d\n", iterations);
+}
+
+// ============================================================
+// Metodo de Gauss-Seidel
+//
+// A diferencia de Jacobi, cuando se calcula xn[i] se usan:
+//   - Los valores NUEVOS (xn) para j < i (ya calculados en esta iteracion)
+//   - Los valores VIEJOS (xv) para j > i (aun no calculados)
+//
+// Esto hace que converja mas rapido que Jacobi.
+// ============================================================
+void gaussSeidelMethod(double a[][MAX_SIZE], double b[], double xv[], double xn[], int n) {
+    double tolerance;
+    int iterations = 0;
+    double old_error, new_error;
+
+    initializeVector(xv, n);
+
+    printf("\nIngrese tolerancia: ");
+    scanf("%lf", &tolerance);
+
+    old_error = 1000.0;
+
+    do {
+        iterations++;
+
+        for (int i = 0; i < n; i++) {
+            double suma = 0.0;
+
+            // Valores NUEVOS (ya calculados en esta iteracion): j < i
+            for (int j = 0; j < i; j++) {
+                suma += a[i][j] * xn[j];
+            }
+
+            // Valores VIEJOS (de la iteracion anterior): j > i
+            for (int j = i + 1; j < n; j++) {
+                suma += a[i][j] * xv[j];
+            }
+
+            xn[i] = (b[i] - suma) / a[i][i];
+        }
+
+        // Se calcula el error
+        new_error = computeError(xn, xv, n);
+
+        // Verificacion de convergencia
+        if (new_error > old_error) {
+            printf("\nEl metodo NO converge (el error crece).\n");
+            printf("Iteraciones: %d, Error: %.12lf\n", iterations, new_error);
+            return;
+        }
+
+        old_error = new_error;
+
+        // Se copian los valores nuevos para la proxima iteracion
+        for (int i = 0; i < n; i++) {
+            xv[i] = xn[i];
+        }
+
+        printf("iter %d  error: %.12lf\n", iterations, new_error);
+
+    } while (new_error > tolerance && iterations < 10000);
+
+    // Se muestra la solucion
+    printf("\n--- SOLUCION (Gauss-Seidel) ---\n");
+    for (int i = 0; i < n; i++) {
+        printf("x[%d] = %lf\n", i, xn[i]);
+    }
+    printf("Error: %.12lf\n", new_error);
+    printf("Iteraciones: %d\n", iterations);
+}
+
+// ============================================================
+// Programa principal
+// ============================================================
+int main(int argc, char const *argv[]) {
+
+    // --- PASO 1: LECTURA DE DATOS ---
+    int n;
+    double a[MAX_SIZE][MAX_SIZE];
+    double b[MAX_SIZE];
+
+    if (!read_array_file("matriz.dat", a, b, &n)) {
+        return 1;
+    }
+
+    // Se imprime el sistema original
+    printf("Sistema original de ecuaciones:\n");
+    printf("================================\n");
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%10.6lf ", a[i][j]);
+        }
+        printf("| %10.6lf\n", b[i]);
+    }
+    printf("\n");
+
+    // --- PASO 2: VERIFICACION DE DIAGONAL DOMINANTE ---
+    if (!checkDiagonalDominance(a, n)) {
+        printf("No se puede continuar. La matriz tiene ceros en la diagonal.\n");
+        return 1;
+    }
+    printf("Verificacion completada.\n\n");
+
+    // --- PASO 3: ELEGIR METODO ---
+    int opcion;
+    double xv[MAX_SIZE], xn[MAX_SIZE];
+
+    do {
+        printf("\n--- MENU ---");
         printf("\n1- Jacobi");
-        printf("\n2- Gauss - Seidel");
-        printf("\n----------");
+        printf("\n2- Gauss-Seidel");
+        printf("\n3- Salir");
+        printf("\n------------");
         printf("\nOPCION: ");
-        scanf("%d",&opcion);
+        scanf("%d", &opcion);
 
-        switch(opcion){
-
+        switch (opcion) {
             case 1:
-
-            // Método iterativo de Jacobi
-            printf("\nIngrese tolerancia: ");
-            scanf("%lf",&tol);
-
-            // Verifica si la matriz puede converger: diagonal dominante y diagonal no nula
-            for(i=0;i<FIL;i++){
-
-                suma=0;
-                for(j=0;j<COL;j++){
-
-                    if(j!=i){
-                        suma=suma+fabs(arreglo[i][j]);
-                    }
-                }
-                if(fabs(arreglo[i][i]) < suma){
-                    printf("\nLa matriz no es diagonalmente dominante");
-                }
-                if(fabs(arreglo[i][i])==0){
-                    printf("\nCeros en la diagonal");
-                    return 1;
-                }
-            }//verificacion de posible convergencia
-            
-            iteracion=0;
-
-            // Repetición de las iteraciones del método de Jacobi hasta alcanzar la tolerancia
-            do
-            {
-                iteracion++;
-                double error=0;
-                for(i=0;i<FIL;i++){
-                    suma=0;
-                    for(j=0;j<COL;j++){
-                        if(j != i){
-                            suma=suma+arreglo[i][j]*xv[j];
-                        }
-                    }
-                    // Fórmula del método de Jacobi para calcular la nueva aproximación
-                    x0[i]=(b[i]-suma)/arreglo[i][i];
-                    error=error+pow((x0[i]-xv[i]),2);
-                    xv[i]=x0[i];
-                }//calculo de xnuevo (x0)
-                e=sqrt(error);
-                printf("\niter %d",iteracion);
-                printf("\nerror: %.12lf",e);
-                printf("\n");
-            } while (e > tol && iteracion < 10000 );
-            
-            // Muestra la solución obtenida por Jacobi
-            for(i=0;i<FIL;i++){
-
-                printf("\nX0[%d]: %lf",i+1,x0[i]);
-
-            }
-            printf("\nError: %.12lf",e);
-            printf("\nIteraciones: %d",iteracion);
-
-
-
-
-
-            break;
-
+                jacobiMethod(a, b, xv, xn, n);
+                break;
             case 2:
-            
-            // Método iterativo de Gauss-Seidel
-            printf("\nIngrese tolerancia: ");
-            scanf("%lf",&tol);
-
-            // Verifica la convergencia de la matriz antes de iterar
-            for(i=0;i<FIL;i++){
-
-                suma=0;
-                for(j=0;j<COL;j++){
-
-                    if(j!=i){
-                        suma=suma+fabs(arreglo[i][j]);
-                    }
-                }
-                if(fabs(arreglo[i][i]) < suma){
-                    printf("\nLa matriz no es diagonalmente dominante");
-                }
-                if(fabs(arreglo[i][i])==0){
-                    printf("\nCeros en la diagonal");
-                    return 1;
-                }
-            }//verificacion de posible convergencia
-            
-            iteracion=0;
-
-            // Repetición de las iteraciones del método de Gauss-Seidel
-            do
-            {
-                iteracion++;
-                double error=0;
-                for(i=0;i<FIL;i++){
-                    suma=0;
-                if(i==0){
-                    // Se usan valores actuales de las demás incógnitas para la primera fila
-                    for(j=1;j<COL;j++){
-                        suma=suma+arreglo[i][j]*xv[j];
-                    }
-                    x0[i]=(b[i]-suma)/(arreglo[i][i]);
-                }else{
-                    // Se aprovechan los valores ya actualizados de x0 para acelerar la convergencia
-                    for(j=0;j<i;j++){
-                        suma=suma+arreglo[i][j]*x0[j];
-                    }
-                    for(j=i+1;j<COL;j++){
-                        suma=suma+arreglo[i][j]*xv[j];
-                    }
-
-                    x0[i]=(b[i]-suma)/(arreglo[i][i]);
-                
-                    error=error+pow((x0[i]-xv[i]),2);
-                    xv[i]=x0[i];
-                }//calculo de xnuevo (x0)
-                }
-                e=sqrt(error);
-                printf("\niter %d",iteracion);
-                printf("\nerror: %.12lf",e);
-                printf("\n");
-            } while (e > tol && iteracion < 10000 );
-            
-            // Muestra la matriz y la solución final obtenida por Gauss-Seidel
-            printf("\n--Matriz resuelta--\n");
-					
-				for(i=0;i<filas;i++)
-			{
-				for(j=0;j<columnas;j++)
-				{
-					printf("%lf ",arreglo[i][j]);
-				}
-				printf("\n");
-			} 
-
-            for(i=0;i<FIL;i++){
-
-                printf("\nX0[%d]: %lf",i+1,x0[i]);
-
-            }
-            printf("\nError: %.12lf",e);
-            printf("\nIteraciones: %d",iteracion);
-
-
-            break;
-
+                gaussSeidelMethod(a, b, xv, xn, n);
+                break;
+            case 3:
+                printf("Saliendo...\n");
+                break;
+            default:
+                printf("Opcion invalida.\n");
         }
-
-
-
-
     } while (opcion != 3);
-    
 
-    // Fin del programa
     return 0;
 }
+
+//4 -1 1 7
+//4 -8 1 -21
+//-2 1 5 15
