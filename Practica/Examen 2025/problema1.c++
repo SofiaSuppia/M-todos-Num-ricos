@@ -195,7 +195,7 @@ int main() {
     printf("    0  |   %.10lf   |   %10.6lf   %10.6lf   |       ----\n",
            x0, f(x0), df(x0));
 
-    double x4 = x0, eps4 = 0.0;
+    double eps4 = 0.0;
     for (int i = 1; i <= 4; i++) {
         xAct = xAnt - f(xAnt) / df(xAnt);
         eps4 = errorPorcentual(xAct, xAnt);   // guarda el de la 4ta iteracion

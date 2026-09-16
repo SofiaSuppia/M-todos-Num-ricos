@@ -196,7 +196,7 @@ int main() {
     for (int j = 0; j < N; j++) xv[j] = 1.0;   // valor inicial x0j = 1
 
     double tolerance = 1e-4;
-    double error, old_error = 1.0e9;
+    double error;
     int iter = 0;
 
     printf("  iter |      x1            x2            x3            x4"
