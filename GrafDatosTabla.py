@@ -1,20 +1,36 @@
 #Paquetes
+import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
 # ============================================================
 # SECCION: LECTURA DE ARCHIVO
-# Se lee una tabla de datos desde un archivo de texto
-# (mismo criterio que los programas en C++: el archivo debe
-# estar en la misma carpeta que este script).
+# Se lee una tabla de datos desde un archivo de texto.
 # Formato esperado: una linea por punto ->  xi yi
-# La lectura es identica a la original: np.loadtxt y columnas 0 y 1.
+#
+# Para que se pueda ejecutar desde CUALQUIER carpeta, la busqueda
+# es así:
+#   1) Si se pasa un argumento (ruta del archivo) se usa ese:
+#        python3 GrafDatosTabla.py /ruta/archivo.txt
+#   2) Si no se pasa nada, se busca 'data.txt' en la carpeta donde
+#      esta este script (asi es portable: se copia script + data.txt
+#      a la carpeta nueva y funciona igual).
 # ============================================================
 NOMBRE_ARCHIVO = 'data.txt'
 
-def leer_tabla(nombre_archivo=NOMBRE_ARCHIVO):
+def ruta_data():
+    if len(sys.argv) > 1:
+        return sys.argv[1]  # ruta pasada por el usuario
+    # carpeta donde esta el script, no la carpeta desde donde se ejecuta
+    carpeta_script = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(carpeta_script, NOMBRE_ARCHIVO)
+
+def leer_tabla(nombre_archivo=None):
+    if nombre_archivo is None:
+        nombre_archivo = ruta_data()
     data = np.loadtxt(nombre_archivo)  # leo el archivo
-    x = data[:, 0]  # primer columna
+    x = data[:, 0]  # primera columna
     y = data[:, 1]  # segunda columna
     return x, y
 
