@@ -1,16 +1,26 @@
 #include <iostream>
 #include <math.h>
 
+// ============================================================
+// METODO DE LA SECANTE (mejorado)
+// x_{n+1} = x_n  -  f(x_n) * (x_n - x_{n-1}) / (f(x_n) - f(x_{n-1}))
+//
+// Es como Newton-Raphson pero reemplaza la derivada f'(x) por el
+// cociente incremental entre las dos ultimas aproximaciones.
+// Trabaja con DOS puntos iniciales (x0 y x1) y NO usa derivada.
+//
+// Muestra en CADA iteracion: x0, x1, x2, f(x2) y el error
+// absoluto |x2 - x1|.
+// ============================================================
+
 // Definir la función f(x)
 double f(double x) {
-    return pow(x, 3) - 9 * x + 3; // Ejemplo, cámbialo según el problema
+    return log(x * x + 1) - sin(x); // Parcial 1 - 2024
 }
-
-//x0 es viejo, x1 es xviejoviejo (x-1), x2 es xnuevo
 
 int main() {
     double x0, x1, x2, tolerancia, error;
-    int i = 0;
+    int i = 0, max_iter = 1000;
 
     printf("Ingrese x0: ");
     scanf("%lf", &x0);
@@ -19,34 +29,47 @@ int main() {
     printf("Ingrese tolerancia: ");
     scanf("%lf", &tolerancia);
 
+    printf("\n iter |      x0      |      x1      |      x2      |    f(x2)     |     error     \n");
+    printf("------+-------------+-------------+-------------+--------------+--------------+\n");
+
     do {
         i++;
 
-        // PREGUNTAR, TENGO DUDAS
-        // Evitar división por cero
+        // Si f(x1) == f(x0) la secante es horizontal y no corta al eje x:
+        // la formula divide por cero. Avisamos pero seguimos iterando.
         if (fabs(f(x1) - f(x0)) < 1e-12) {
-            printf("Diferencia muy pequena entre f(x1) y f(x0). El metodo no puede continuar.\n");
-            return 0;
+            printf("Ojo: f(x1) y f(x0) muy parecidos (secante horizontal).\n");
         }
 
-        // Fórmula de la secante
+        // Fórmula de la secante: interseccion de la recta que pasa por
+        // (x0, f(x0)) y (x1, f(x1)) con el eje x.
         x2 = x1 - (f(x1) * (x1 - x0) / (f(x1) - f(x0)));
 
-        // Calcular error absoluto
+        // Error absoluto estimado: que tan lejos se movio la aprox.
         error = fabs(x2 - x1);
 
-        // Actualizar valores
+        // Mostrar los valores de la iteracion actual
+        printf("%5d | %11.8f | %11.8f | %11.8f | %12.8f | %12.8f\n",
+               i, x0, x1, x2, f(x2), error);
+
+        // Si f(x2) = 0 la raiz es exacta: terminar
+        if (f(x2) == 0)
+            break;
+
+        // Actualizar valores: x2 pasa a ser el "nuevo", x1 el "viejo"
         x0 = x1;
         x1 = x2;
 
-        printf("Iteracion %d: x = %.6lf, error = %.6lf, f(x) = %.6lf\n",
-               i, x2, error, f(x2));
+    } while (error > tolerancia && i < max_iter);
 
-    } while (error > tolerancia && i < 10000);
-
-    printf("\nRaiz aproximada: %.6lf\n", x2);
-    printf("Error final: %.6lf\n", error);
+    printf("------+-------------+-------------+-------------+--------------+--------------+\n");
+    printf("\nRaiz aproximada: %.10f\n", x2);
+    printf("Error final: %.10f\n", error);
     printf("Iteraciones: %d\n", i);
+
+    // Avisar si se corto por el limite de iteraciones (no convergio)
+    if (i == max_iter && error > tolerancia)
+        printf("Ojo: se alcanzo el maximo de iteraciones (%d).\n", max_iter);
 
     return 0;
 }

@@ -58,8 +58,8 @@ def graficar_matplot(funciones, etiqueta_f="", valores_iniciales=None, x_min=-5,
     plt.show()
 
 # Uso con una sola funcion (igual que el original)
-f_py = lambda x: np.cos(np.sin(x))
-graficar_matplot(f_py, "cos(sin(x))", valores_iniciales=[0.1, 2])
+f_py = lambda x: np.log(x * x + 1) - np.sin(x)
+graficar_matplot(f_py, "log(x^2 + 1) - sin(x)", valores_iniciales=[0.1, 2])
 
 # Uso con varias funciones (descomentar para probar)
 # f1 = lambda x: np.cos(np.sin(x))
