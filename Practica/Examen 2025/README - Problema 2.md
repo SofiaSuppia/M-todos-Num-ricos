@@ -9,7 +9,7 @@ hay que escribir en cada parte.
 |---|---|
 | `problema2.c++` | Código: eliminación gaussiana (a) y Gauss-Seidel (b), con el enunciado en los comentarios |
 | `problema2` | Ejecutable ya compilado |
-| `README.md` | Este documento |
+| `README - Problema 2.md` | Este documento |
 
 Compilar (si modificás el `.c++`) y ejecutar:
 
