@@ -97,11 +97,40 @@ void mostrarPuntosDatos(double X[], double Y[], int n) {
 
 // ============================================================
 // SECCION: POLINOMIO DE LAGRANGE (valor numérico)
-// Calcula el valor interpolado Pn(xsombrero) usando la formula
-// de Lagrange:
+// Calcula el valor interpolado Pn(xsombrero) usando la formula de Lagrange:
 //
-//   Pn(x) = SUMATORIA(k=0..n)  y[k] * PROD(i=0..n, i!=k)
-//            (x - x[i]) / (x[k] - x[i])
+//   Pn(x) = SUMATORIA(k=0..n-1)  y[k] * Lk(x)
+//
+//   con  Lk(x) = PROD(i=0..n-1, i!=k)  (x - x[i]) / (x[k] - x[i])
+//
+// Es decir: para cada nodo k se arma un "coeficiente" Lk(x) (numerador con
+// todos los factores (x - x[i]) salvo el i==k, dividido por el mismo producto
+// pero con x reemplazado por x[k]). Luego Pn(x) es la suma de y[k]*Lk(x).
+// La SUMATORIA de Pn se resuelve sumando los n terminos y[k]*Lk(x) uno por uno.
+//
+// COMO SE CALCULA A MANO (parcial: x0=1.0, x1=1.2, x2=1.5, x3=1.75, x4=2.0,
+// y = -0.148, -0.040, 0.181, 0.419, 0.700; se quiere P4(1.6)):
+//
+//   L0(1.6) = (1.6-1.2)(1.6-1.5)(1.6-1.75)(1.6-2)
+//             ---------------------------------------
+//             (1.0-1.2)(1.0-1.5)(1.0-1.75)(1.0-2.0)
+//           = 0.4*0.1*(-0.15)*(-0.4) / (-0.2)*(-0.5)*(-0.75)*(-1.0)
+//           = 0.0024 / 0.075 = 0.032
+//   L1(1.6) = 0.6*0.1*(-0.15)*(-0.4) / 0.2*(-0.3)*(-0.55)*(-0.8)
+//           = 0.0036 / (-0.0264) = -0.136364
+//   L2(1.6) = 0.6*0.4*(-0.15)*(-0.4) / 0.5*0.3*(-0.25)*(-0.5)
+//           = 0.0144 / 0.01875 = 0.768
+//   L3(1.6) = 0.6*0.4*0.1*(-0.4) / 0.75*0.55*0.25*(-0.25)
+//           = -0.0096 / -0.02578125 = 0.372364
+//   L4(1.6) = 0.6*0.4*0.1*(-0.15) / 1.0*0.8*0.5*0.25
+//           = -0.0036 / 0.1 = -0.036
+//   SUMA Lk = 0.032 - 0.136364 + 0.768 + 0.372364 - 0.036 = 1.0  (verificacion)
+//
+//   P4(1.6) = y0*L0 + y1*L1 + y2*L2 + y3*L3 + y4*L4
+//           = (-0.148)(0.032) + (-0.040)(-0.136364) + (0.181)(0.768)
+//             + (0.419)(0.372364) + (0.700)(-0.036)
+//           = -0.004736 + 0.005455 + 0.139008 + 0.156021 - 0.025200
+//           = 0.270547
 //
 // @param x   el punto donde se quiere interpolar (xsombrero)
 // @param X   arreglo de abscisas
@@ -312,6 +341,18 @@ void lagrangeCoeficientes(double X[], double Y[], int n, double coef[]) {
         coef[i] = 0.0;
     }
 
+    // ============================================================
+    // COMO SE EXPANDE EL POLINOMIO A MANO
+    // Cada Lk(x) es un producto de terminos (x - X[i]) con i != k.
+    // Se arranca con base = 1 y se va multiplicando por cada (x - X[i]):
+    //
+    //   base = 1
+    //   base = 1 * (x - X[a])          =  -X[a] + 1*x
+    //   base = (x - X[a])(x - X[b])    =  X[a]*X[b] - (X[a]+X[b])*x + 1*x^2
+    //   ... y asi sucesivamente hasta incluir todos los i != k.
+    // El denominador es el mismo producto pero evaluado en x = X[k].
+    // El termino k aporta   (y[k] / denominador) * base(x)   a los coeficientes.
+    // ============================================================
     // Se recorre cada termino k del polinomio de Lagrange
     for (int k = 0; k < n; k++) {
         // 'base' almacena el polinomio base Lk(x) que va creciendo
