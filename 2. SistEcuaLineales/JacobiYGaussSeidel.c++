@@ -111,6 +111,16 @@ void initializeVector(double v[], int n) {
 }
 
 // ============================================================
+// Muestra un vector completo en una sola linea (para la tabla de
+// iteraciones).
+// ============================================================
+void mostrarVector(double xn[], int n) {
+    for (int j = 0; j < n; j++) {
+        printf("%12.8lf ", xn[j]);
+    }
+}
+
+// ============================================================
 // Calcula el error entre dos vectores (norma euclidea)
 // error = sqrt( sum( (xn[i] - xv[i])^2 ) )
 // ============================================================
@@ -120,6 +130,35 @@ double computeError(double xn[], double xv[], int n) {
         error += pow(xn[i] - xv[i], 2);
     }
     return sqrt(error);
+}
+
+// ============================================================
+// Cabecera de la tabla de iteraciones: iter | x[0] x[1] ... | error
+// ============================================================
+void imprimirCabecera(int n) {
+    printf("\n  iter | ");
+    for (int j = 0; j < n; j++) {
+        printf("    x[%d]      ", j);
+    }
+    printf("|      error\n");
+    printf("  -----------------------------------------------------\n");
+}
+
+// ============================================================
+// Verifica el resultado calculando el residuo  ||A*x - b|| .
+// Si el residuo es muy chico, la solucion es correcta.
+// ============================================================
+void verificarResiduo(double a[][MAX_SIZE], double b[], double xn[], int n) {
+    double residuo = 0.0;
+    for (int i = 0; i < n; i++) {
+        double s = 0.0;
+        for (int j = 0; j < n; j++) {
+            s += a[i][j] * xn[j];
+        }
+        residuo += pow(s - b[i], 2);
+    }
+    residuo = sqrt(residuo);
+    printf("Residuo ||A*x - b|| = %.12lf\n", residuo);
 }
 
 // ============================================================
@@ -144,6 +183,8 @@ void jacobiMethod(double a[][MAX_SIZE], double b[], double xv[], double xn[], in
     scanf("%lf", &tolerance);
 
     old_error = 1000.0;
+
+    imprimirCabecera(n);
 
     do {
         iterations++;
@@ -176,17 +217,20 @@ void jacobiMethod(double a[][MAX_SIZE], double b[], double xv[], double xn[], in
             xv[i] = xn[i];
         }
 
-        printf("iter %d  error: %.12lf\n", iterations, new_error);
+        printf("  %3d  | ", iterations);
+        mostrarVector(xn, n);
+        printf("| %.12lf\n", new_error);
 
     } while (new_error > tolerance && iterations < 10000);
 
     // Se muestra la solucion
     printf("\n--- SOLUCION (Jacobi) ---\n");
     for (int i = 0; i < n; i++) {
-        printf("x[%d] = %lf\n", i, xn[i]);
+        printf("x[%d] = %.12lf\n", i, xn[i]);
     }
     printf("Error: %.12lf\n", new_error);
     printf("Iteraciones: %d\n", iterations);
+    verificarResiduo(a, b, xn, n);
 }
 
 // ============================================================
@@ -209,6 +253,8 @@ void gaussSeidelMethod(double a[][MAX_SIZE], double b[], double xv[], double xn[
     scanf("%lf", &tolerance);
 
     old_error = 1000.0;
+
+    imprimirCabecera(n);
 
     do {
         iterations++;
@@ -246,17 +292,20 @@ void gaussSeidelMethod(double a[][MAX_SIZE], double b[], double xv[], double xn[
             xv[i] = xn[i];
         }
 
-        printf("iter %d  error: %.12lf\n", iterations, new_error);
+        printf("  %3d  | ", iterations);
+        mostrarVector(xn, n);
+        printf("| %.12lf\n", new_error);
 
     } while (new_error > tolerance && iterations < 10000);
 
     // Se muestra la solucion
     printf("\n--- SOLUCION (Gauss-Seidel) ---\n");
     for (int i = 0; i < n; i++) {
-        printf("x[%d] = %lf\n", i, xn[i]);
+        printf("x[%d] = %.12lf\n", i, xn[i]);
     }
     printf("Error: %.12lf\n", new_error);
     printf("Iteraciones: %d\n", iterations);
+    verificarResiduo(a, b, xn, n);
 }
 
 // ============================================================

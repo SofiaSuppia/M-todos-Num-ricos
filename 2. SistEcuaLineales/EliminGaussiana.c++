@@ -78,6 +78,19 @@ bool read_array_file(const char* filename, double a[][MAX_SIZE], double b[], int
 }
 
 // ============================================================
+// Muestra el sistema como matriz aumentada [ A | b ]
+// ============================================================
+void mostrarSistema(double a[][MAX_SIZE], double b[], int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%10.6lf ", a[i][j]);
+        }
+        printf("| %10.6lf\n", b[i]);
+    }
+    printf("\n");
+}
+
+// ============================================================
 // Programa principal: Eliminacion Gaussiana con Pivoteo
 //
 // Resuelve un sistema de ecuaciones lineales Ax = b
@@ -104,25 +117,17 @@ int main(int argc, char const *argv[]) {
     }
 
     // Se imprime el sistema original para verificar que se leyo correctamente
-    printf("Sistema original de ecuaciones:\n");
+    printf("Sistema ORIGINAL de ecuaciones:\n");
     printf("================================\n");
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            printf("%10.6lf ", a[i][j]);
-        }
-        printf("| %10.6lf\n", b[i]);
-    }
-    printf("\n");
+    mostrarSistema(a, b, n);
 
-    // --- PASO 2: PIVOTEO ---
-    // Recorre cada columna (pivote). Si el elemento de la diagonal a[i][i]
-    // es muy chico (casi cero), se busca en la columna i la fila con el
-    // elemento de mayor valor absoluto y se intercambian filas.
-    // Esto evita division por cero y mejora la precision numerica.
+    // --- PASO 2 Y 3: PIVOTEO + TRIANGULACION (paso a paso) ---
     int p;
     double aux;
+    int intercambios = 0;   // cada intercambio de filas cambia el signo del det
 
     for (int i = 0; i < n - 1; i++) {
+        printf("=== PASO: columna %d (pivote a[%d][%d]) ===\n", i + 1, i + 1, i + 1);
         p = i;
 
         // Si el pivote es casi cero, buscar mejor fila
@@ -134,48 +139,60 @@ int main(int argc, char const *argv[]) {
                 }
             }
 
-            // Se intercambian las filas i y p en la matriz
-            for (int m = i; m < n; m++) {
-                aux = a[p][m];
-                a[p][m] = a[i][m];
-                a[i][m] = aux;
-            }
+            if (p != i) {
+                printf("  El pivote a[%d][%d] = %.6lf es casi cero.\n",
+                       i + 1, i + 1, a[i][i]);
+                printf("  PIVOTEO: se intercambia la fila %d con la fila %d "
+                       "(nuevo pivote = %.6lf).\n", i + 1, p + 1, a[p][i]);
 
-            // Se intercambian las filas i y p en el vector b
-            aux = b[p];
-            b[p] = b[i];
-            b[i] = aux;
+                // Se intercambian las filas i y p en la matriz
+                for (int m = i; m < n; m++) {
+                    aux = a[p][m];
+                    a[p][m] = a[i][m];
+                    a[i][m] = aux;
+                }
+
+                // Se intercambian las filas i y p en el vector b
+                aux = b[p];
+                b[p] = b[i];
+                b[i] = aux;
+
+                intercambios++;   // el intercambio cambia el signo del det
+
+                printf("  Despues del intercambio:\n");
+                mostrarSistema(a, b, n);
+            } else {
+                printf("  El pivote a[%d][%d] = %.6lf es casi cero y no hay "
+                       "mejor fila para intercambiar (matriz singular).\n",
+                       i + 1, i + 1, a[i][i]);
+            }
+        } else {
+            printf("  El pivote a[%d][%d] = %.6lf no es casi cero -> "
+                   "no hace falta pivoteo.\n", i + 1, i + 1, a[i][i]);
         }
 
-        // --- PASO 3: TRIANGULACION (Eliminacion Gaussiana) ---
-        // Para cada fila j debajo del pivote i, se calcula:
-        //   factor = a[j][i] / a[i][i]
-        // Luego se resta 'factor' veces la fila pivote de la fila j,
-        // tanto en la matriz A como en el vector b.
-        // Al terminar, la matriz queda en forma triangular superior.
+        // --- TRIANGULACION (Eliminacion Gaussiana) ---
+        // Se hace ceros lo que esta debajo del pivote restando 'factor'
+        // veces la fila pivote:  factor = a[j][i] / a[i][i]
         for (int j = i + 1; j < n; j++) {
             double factor = a[j][i] / a[i][i];
+            printf("  factor m[%d][%d] = %.6lf / %.6lf = %.6lf\n",
+                   j + 1, i + 1, a[j][i], a[i][i], factor);
 
             for (int k = i; k < n; k++) {
                 a[j][k] = a[j][k] - factor * a[i][k];
             }
             b[j] = b[j] - factor * b[i];
         }
+
+        printf("  Sistema luego de eliminar la columna %d:\n", i + 1);
+        mostrarSistema(a, b, n);
     }
 
-    // Se imprime la matriz y el vector b despues de la triangulacion
-    printf("Matriz despues de la eliminacion gaussiana:\n");
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            printf("%lf ", a[i][j]);
-        }
-        printf("\n");
-    }
-    printf("Vector b despues de la eliminacion gaussiana:\n");
-    for (int i = 0; i < n; i++) {
-        printf("%lf ", b[i]);
-    }
-    printf("\n\n");
+    // Se imprime la matriz triangular superior final
+    printf("MATRIZ TRIANGULAR SUPERIOR FINAL:\n");
+    printf("=================================\n");
+    mostrarSistema(a, b, n);
 
     // --- PASO 4: CALCULO DEL DETERMINANTE ---
     // El determinante de una matriz triangular es el producto
@@ -187,14 +204,25 @@ int main(int argc, char const *argv[]) {
     }
 
     printf("------------------DETERMINANTE------------------\n");
-    printf("El determinante de la matriz es: %lf\n\n", det);
+    // El determinante de la matriz triangular es el producto de la diagonal,
+    // pero cada intercambio de filas del pivoteo cambia su signo.
+    printf("Producto de la diagonal = %lf  |  Intercambios de filas = %d\n",
+           det, intercambios);
+    if (intercambios % 2 == 1) {
+        det = -det;
+        printf("Se corrige el signo por %d intercambio(s) de filas -> ",
+               intercambios);
+        printf("El determinante de la matriz es: %lf\n\n", det);
+    } else {
+        printf("El determinante de la matriz es: %lf\n\n", det);
+    }
 
     if (det == 0) {
         printf("El determinante es cero, el sistema no tiene solucion unica.\n");
         return 1;
     }
 
-    // --- PASO 5: RETROSUSTITUCION ---
+    // --- PASO 5: RETROSUSTITUCION (paso a paso) ---
     // Se resuelve el sistema triangular superior Ax = b
     // desde la ultima ecuacion hasta la primera:
     //   x[n-1] = b[n-1] / a[n-1][n-1]
@@ -202,7 +230,11 @@ int main(int argc, char const *argv[]) {
     double x[MAX_SIZE];
     double suma;
 
+    printf("RETROSUSTITUCION:\n");
+
     x[n - 1] = b[n - 1] / a[n - 1][n - 1];
+    printf("  x[%d] = %.6lf / %.6lf = %.6lf\n",
+           n - 1, b[n - 1], a[n - 1][n - 1], x[n - 1]);
 
     for (int i = n - 2; i >= 0; i--) {
         suma = b[i];
@@ -210,7 +242,9 @@ int main(int argc, char const *argv[]) {
             suma = suma - a[i][j] * x[j];
         }
         x[i] = suma / a[i][i];
+        printf("  x[%d] = %.6lf / %.6lf = %.6lf\n", i, suma, a[i][i], x[i]);
     }
+    printf("\n");
 
     // --- PASO 6: IMPRESION DE RESULTADOS ---
     printf("------------------SOLUCION------------------\n");
