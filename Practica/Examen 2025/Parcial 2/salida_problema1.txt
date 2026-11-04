@@ -1,0 +1,61 @@
+========================================================================
+PROBLEMA 1 - SEGUNDO PARCIAL 2025
+========================================================================
+I = integral de 0 a 1 de e^x * sin(x) dx
+Valor exacto dado: 0.9093306736
+
+------------------ INCISO a) GAUSS-LEGENDRE 2 PUNTOS ------------------
+x1 = 0.2113248654
+x2 = 0.7886751346
+f(x1) = 0.2591137921
+f(x2) = 1.5610642502
+I_Gauss = 0.9100890212
+I_Gauss (6 decimales) = 0.910089
+Error absoluto exacto = 0.0007583476
+
+------------------ INCISO b) SIMPSON 1/3 SIMPLE -----------------------
+f(0.0) = 0.0000000000
+f(0.5) = 0.7904390832
+f(1.0) = 2.2873552872
+I_Simpson_simple = 0.9081852700
+I_Simpson_simple (6 decimales) = 0.908185
+Error absoluto exacto = 0.0011454036
+
+------------------ INCISO c) SPLINE CUBICO NATURAL --------------------
+Segundas derivadas M[i] = S''(X[i]):
+  M[0] = 0.0000000000
+  M[1] = 2.9162824378
+  M[2] = 2.6166225673
+  M[3] = 3.0399429605
+  M[4] = 3.0448440172
+  M[5] = 4.0125259971
+  M[6] = 0.0000000000
+
+Tabla original:
+    i        X[i]         Y[i]
+    0       0.0000       0.0000
+    1       0.2000       0.2426
+    2       0.4300       0.6408
+    3       0.5500       0.9059
+    4       0.8500       1.7577
+    5       0.9000       1.9267
+    6       1.0000       2.2873
+
+Tabla nueva de 5 datos equiespaciados (4 decimales):
+    i        X[i]         Y[i]
+    0       0.0000       0.0000
+    1       0.2500       0.3166
+    2       0.5000       0.7905
+    3       0.7500       1.4433
+    4       1.0000       2.2873
+
+------------------ INCISO d) SIMPSON COMPUESTO ------------------------
+Se usa la tabla redondeada del inciso c, con h = 0.25:
+I_Simpson_compuesto = 0.9089916667
+Error absoluto exacto = 0.0003390069
+
+Comparacion con el valor exacto:
+  I_exacta              = 0.9093306736
+  Gauss-Legendre        = 0.9100890212
+  Simpson 1/3 simple    = 0.9081852700
+  Simpson compuesto     = 0.9089916667
