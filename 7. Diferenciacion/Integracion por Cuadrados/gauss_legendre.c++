@@ -66,7 +66,7 @@ int main(int argc, char const *argv[]) {
     // Numero de puntos para la Cuadratura de Gauss-Legendre
     int number_of_points;
     // Resultado de la integral
-    double integral;
+    double integral = 0.0;
 
     // Arrays para el calculo de los coeficientes del Spline (sistema Ax=b)
     double A[MAX_SIZE+1][MAX_SIZE+1], b[MAX_SIZE+1], solution[MAX_SIZE+1];
@@ -78,7 +78,7 @@ int main(int argc, char const *argv[]) {
     double a_limit, b_limit;
     // Opcion: funcion explicita o tabla de datos
     int choice;
-    char continuar;
+    char continuar = 'n';
 
     printf("========================================================\n");
     printf("  INTEGRACION NUMERICA - CUADRATURA GAUSS-LEGENDRE\n");
@@ -99,11 +99,25 @@ int main(int argc, char const *argv[]) {
     if(choice == 1) {
         // --- PROCESAMIENTO DEL SPLINE CUBICO ---
         
-        // 1. Lectura de datos
-        if (!read_data_points("../data.txt", X, Y, &n)) {
+        // 1. Lectura de datos (busca data.txt en la carpeta actual o en la carpeta padre)
+        const char *data_path = "data.txt";
+        FILE *test_file = fopen(data_path, "r");
+        if (test_file == NULL) {
+            data_path = "../data.txt";
+        } else {
+            fclose(test_file);
+        }
+
+        if (!read_data_points(data_path, X, Y, &n)) {
             printf("Error al leer los datos del archivo. Saliendo.\n");
             continue;
         }
+
+        if (n < 2) {
+            printf("Error: se necesitan al menos 2 puntos para construir el Spline.\n");
+            continue;
+        }
+
         print_data_points(X, Y, n);
 
         // 2. Inicializar la matriz A y el vector b del sistema lineal (tamaño 4*(n-1))

@@ -1,17 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <string.h> // Necesario para 'rename' si no está en stdio.h
 
 #define MAX_SIZE 200 // Tamaño máximo para los arreglos de puntos
 
+// Comando para ejecutar el script de la gráfica de la solución.
+// Se intenta primero desde la carpeta actual y, si falla, desde la carpeta
+// padre. Asi funciona tanto al ejecutar en "8. EDO" como en "8. EDO/output".
+// En Linux/macOS se usa python3; en Windows se usa python.
+#ifdef _WIN32
+#define COMANDO_GRAFICA "python graph_points.py || python ..\\graph_points.py"
+#else
+#define COMANDO_GRAFICA "python3 graph_points.py || python3 ../graph_points.py"
+#endif
+
 /**
- * Función para guardar los valores calculados en un archivo de texto
+ * Función para guardar la tabla de resultados en results.txt.
+ * Escribe las columnas: x, y exacta, y numérica y error exacto.
  * @param X Arreglo de valores de X
- * @param Y Arreglo de valores de Y
+ * @param Y Arreglo de valores numéricos de Y
  * @param n Número de subintervalos (número de puntos - 1)
  */
-void guardar_en_txt(double X[], double Y[], int n);
+void guardar_resultados(double X[], double Y[], int n);
 
 /**
  * Función para definir la función f(x, y) de la EDO: y' = f(x, y)
@@ -125,11 +135,11 @@ void factor_convergencia_rk4(int n, double h, double X0, double Xf, double Y0);
         Alto costo: 4 evaluaciones de f(x,y) por paso.
 */
 
-int main(int argc, char const *argv[]) {
+int main(void) {
     // Variables generales de la EDO
     double X0, Xf, Y0, h;
-    // Variables temporales para cálculos (usadas en Heun/Punto Medio)
-    double Xp, Yp;
+    // Variable temporal usada en el predictor de Heun
+    double Yp;
     int n;
     // Arreglos para almacenar los resultados
     double X[MAX_SIZE + 1], Y[MAX_SIZE + 1];
@@ -139,8 +149,8 @@ int main(int argc, char const *argv[]) {
 
     // Variables para el cálculo de errores
     double error_exacto, error_trunc_local;
-    
-    char continuar;
+
+    char continuar = 'n';
     
     do {
         printf("\n========================================\n");
@@ -169,12 +179,18 @@ int main(int argc, char const *argv[]) {
     }
 
     if(opc_paso == 1) {
-        printf("Inserte el número de subintervalos n (entero):\n");
+        printf("Inserte el número de subintervalos n (entero, máximo %d):\n", MAX_SIZE);
         if (scanf("%d", &n) != 1 || n <= 0) {
             printf("Error: Entrada inválida para n.\n");
             return 1;
         }
-        // Calcular la distancia entre puntos (h)
+        // Validación del tamaño del arreglo: X y Y tienen MAX_SIZE + 1 elementos.
+        // Si n > MAX_SIZE se escribiría fuera de los arreglos.
+        if (n > MAX_SIZE) {
+            printf("Error: n (%d) excede el tamaño máximo permitido (%d).\n", n, MAX_SIZE);
+            return 1;
+        }
+        // Cálculo del paso: h = (xf - x0) / n
         h = (Xf - X0) / n;
     } else if(opc_paso == 2) {
         printf("Inserte el tamaño de paso h:\n");
@@ -182,12 +198,16 @@ int main(int argc, char const *argv[]) {
             printf("Error: Entrada inválida para h.\n");
             return 1;
         }
-        n = (int)round((Xf - X0) / h); // Redondear n al entero más cercano
-        if (n > MAX_SIZE) {
-            printf("Error: el número de subintervalos (%d) excede el tamaño máximo permitido (%d).\n", n, MAX_SIZE);
+        // Se calcula n como double antes de convertirlo a int para evitar
+        // desbordamiento si h es muy pequeño.
+        double n_real = (Xf - X0) / h;
+        if (n_real > (double)MAX_SIZE) {
+            printf("Error: el número de subintervalos calculado excede el máximo permitido (%d).\n", MAX_SIZE);
             return 1;
-        } else if (n <= 0) {
-             printf("Error: El paso h es demasiado grande o el intervalo es muy pequeño.\n");
+        }
+        n = (int)round(n_real); // Redondear n al entero más cercano
+        if (n <= 0) {
+            printf("Error: El paso h es demasiado grande o el intervalo es muy pequeño.\n");
             return 1;
         }
     } else {
@@ -217,11 +237,14 @@ int main(int argc, char const *argv[]) {
             if(opc_convergencia == 1) {
                factor_convergencia_euler(n, h, X0, Xf, Y0);
             }
-            // Método de Euler
+            // Método de Euler (RK1):
+            //   x_{i+1} = x_i + h
+            //   y_{i+1} = y_i + h * f(x_i, y_i)
+            // Es una suma de la pendiente inicial multiplicada por el paso.
             for(int i = 1; i <= n; i++) {
                 // Calcular el siguiente X de forma incremental para evitar errores de redondeo
                 X[i] = X[i-1] + h;
-                // Fórmula de Euler
+                // Fórmula de Euler: avance usando la pendiente al inicio del intervalo
                 Y[i] = Y[i-1] + h * f(X[i-1], Y[i-1]);
             }
 
@@ -232,8 +255,10 @@ int main(int argc, char const *argv[]) {
             // Si local_trunc_error < 0 => El valor calculado por Euler es menor que el exacto (subestima).
             // Si local_trunc_error > 0 => El valor calculado por Euler es mayor que el exacto (sobreestima).
             for(int i = 0; i <= n; i++) {
+                // Error exacto: diferencia entre la solución analítica y la numérica.
                 error_exacto = fabs(y_exacta(X[i]) - Y[i]);
-                // Error de truncamiento local para Euler: O(h²)
+                // Error de truncamiento local de Euler: (h^2 / 2) * y''(x_i).
+                // f_prima representa y'' = d/dx f(x,y).
                 error_trunc_local = (h * h / 2.0) * f_prima(X[i], y_exacta(X[i]));
                 printf("%-10d %-15lf %-15lf %-15lf %-15lf %-15lf\n",
                        i, X[i], y_exacta(X[i]), Y[i], error_exacto, error_trunc_local);
@@ -247,11 +272,15 @@ int main(int argc, char const *argv[]) {
             if(opc_convergencia == 1) {
                factor_convergencia_heun(n, h, X0, Xf, Y0);
             }
+            // Método de Heun (predictor-corrector):
+            //   yp = y_i + h * f(x_i, y_i)                  (predicción con Euler)
+            //   y_{i+1} = y_i + (h/2) * [f(x_i,y_i) + f(x_{i+1},yp)]
+            // El resultado es el promedio de la pendiente inicial y la final estimada.
             for(int i = 1; i <= n; i++) {
                 X[i] = X[i-1] + h;
                 // Paso predictor (similar a Euler)
                 Yp = Y[i-1] + h * f(X[i-1], Y[i-1]);
-                // Paso corrector (promedio de pendientes)
+                // Paso corrector: promedio de las dos pendientes multiplicado por h/2
                 Y[i] = Y[i-1] + (h/2.0) * (f(X[i-1], Y[i-1]) + f(X[i], Yp));
             }
 
@@ -260,8 +289,10 @@ int main(int argc, char const *argv[]) {
             printf("-------------------------------------------------------------------------------------------\n");
 
             for(int i = 0; i <= n; i++) {
+                // Error exacto: diferencia entre la solución analítica y la numérica.
                 error_exacto = fabs(y_exacta(X[i]) - Y[i]);
-                // Error de truncamiento local para Heun: O(h³)
+                // Error de truncamiento local de Heun: (h^3 / 12) * y'''.
+                // y3_prima representa y''' de la solución exacta.
                 error_trunc_local = (pow(h, 3) / 12.0) * y3_prima(X[i], y_exacta(X[i]));
                 printf("%-10d %-15lf %-15lf %-15lf %-15lf %-15lf\n",
                        i, X[i], y_exacta(X[i]), Y[i], error_exacto, error_trunc_local);
@@ -276,14 +307,18 @@ int main(int argc, char const *argv[]) {
                factor_convergencia_punto_medio(n, h, X0, Xf, Y0);
             }
 
-            // Método del Punto Medio (Runge-Kutta de orden 2)
+            // Método del Punto Medio (Runge-Kutta de orden 2):
+            //   k1 = f(x_i, y_i)
+            //   k2 = f(x_i + h/2, y_i + (h/2)*k1)
+            //   y_{i+1} = y_i + h*k2
+            // Se evalúa la pendiente en el punto medio y se usa para avanzar.
             for(int i = 1; i <= n; i++) {
                 X[i] = X[i-1] + h;
                 // Pendiente (k1) al inicio del subintervalo
                 double k1 = f(X[i-1], Y[i-1]);
                 // Pendiente (k2) en el punto medio (usando el predictor de Euler)
                 double k2 = f(X[i-1] + h/2.0, Y[i-1] + (h/2.0) * k1);
-                // Usar la pendiente del punto medio para avanzar
+                // Avance con la pendiente del punto medio
                 Y[i] = Y[i-1] + h * k2;
             }
 
@@ -292,8 +327,10 @@ int main(int argc, char const *argv[]) {
             printf("-------------------------------------------------------------------------------------------\n");
 
             for(int i = 0; i <= n; i++) {
+                // Error exacto: diferencia entre la solución analítica y la numérica.
                 error_exacto = fabs(y_exacta(X[i]) - Y[i]);
-                // Error de truncamiento local para Punto Medio: O(h³)
+                // Error de truncamiento local de Punto Medio: (h^3 / 24) * y'''.
+                // y3_prima representa y''' de la solución exacta.
                 error_trunc_local = (pow(h, 3) / 24.0) * y3_prima(X[i], y_exacta(X[i]));
                 printf("%-10d %-15lf %-15lf %-15lf %-15lf %-15lf\n",
                        i, X[i], y_exacta(X[i]), Y[i], error_exacto, error_trunc_local);
@@ -309,12 +346,19 @@ int main(int argc, char const *argv[]) {
             }
 
             double k1, k2, k3, k4;
-            // Runge-Kutta de orden 4
+            // Runge-Kutta de orden 4:
+            //   k1 = f(x_i, y_i)
+            //   k2 = f(x_i + h/2, y_i + (h/2)*k1)
+            //   k3 = f(x_i + h/2, y_i + (h/2)*k2)
+            //   k4 = f(x_i + h,   y_i + h*k3)
+            //   y_{i+1} = y_i + (h/6)*(k1 + 2*k2 + 2*k3 + k4)
+            // La suma ponderada usa los coeficientes 1/6, 2/6, 2/6 y 1/6.
             for(int i = 0; i <= n-1; i++) {
                 k1 = f(X[i], Y[i]);
                 k2 = f(X[i] + h/2.0, Y[i] + (h/2.0) * k1);
                 k3 = f(X[i] + h/2.0, Y[i] + (h/2.0) * k2);
                 k4 = f(X[i] + h, Y[i] + h * k3);
+                // Promedio ponderado de las cuatro pendientes
                 Y[i+1] = Y[i] + (h/6.0) * (k1 + 2*k2 + 2*k3 + k4);
                 X[i+1] = X[i] + h;
             }
@@ -324,10 +368,12 @@ int main(int argc, char const *argv[]) {
             printf("-------------------------------------------------------------------------------------------\n");
 
             for(int i = 0; i <= n; i++) {
+                // Error exacto: diferencia entre la solución analítica y la numérica.
                 error_exacto = fabs(y_exacta(X[i]) - Y[i]);
 
                 // Estimación práctica del Error de Truncamiento Local (LTE) para RK4.
-                // Se usa la comparación del paso (h) vs el doble de pasos (h/2)
+                // Se compara un paso de tamaño h con dos pasos de tamaño h/2.
+                // Para RK4 el orden es p=4, entonces el divisor es 2^4 - 1 = 15.
                 double error_local_rk4 = 0.0;
                 if (i > 0) {
                     // Recalcular el paso [i-1] a [i] usando dos pasos h/2
@@ -337,7 +383,7 @@ int main(int argc, char const *argv[]) {
                     double y_mid = paso_rk4(x_temp_prev, y_temp_prev, h/2.0);
                     double y_half = paso_rk4(x_temp_prev + h/2.0, y_mid, h/2.0);
 
-                    // Estimador de error: (Y_h/2 - Y_h) / (2^p - 1). Para RK4 (p=4), 2^4 - 1 = 15.
+                    // Estimador de error: |Y_h/2 - Y_h| / (2^p - 1)
                     error_local_rk4 = fabs((y_half - Y[i]) / 15.0);
                 }
                 error_trunc_local = error_local_rk4; // Usamos el estimador
@@ -353,6 +399,23 @@ int main(int argc, char const *argv[]) {
     }
 
 
+    // Resumen final del método elegido.
+    // Se toma el último punto x_final = X[n] y se compara con la solución exacta.
+    double y_final = Y[n];
+    double y_exacta_final = y_exacta(X[n]);
+    double error_final = fabs(y_exacta_final - y_final);
+    double error_relativo = 0.0;
+    if (fabs(y_exacta_final) > 1e-14) {
+        error_relativo = (error_final / fabs(y_exacta_final)) * 100.0;
+    }
+
+    printf("\n--- Resumen final ---\n");
+    printf("x final:          %lf\n", X[n]);
+    printf("y numerica:       %lf\n", y_final);
+    printf("y exacta:         %lf\n", y_exacta_final);
+    printf("error absoluto:   %le\n", error_final);
+    printf("error relativo:   %lf %%\n", error_relativo);
+
     // Imprimir resultados
     printf("\nResultados finales para el archivo results.txt:\n");
     printf("X[i]\t\tY[i]\n");
@@ -361,11 +424,12 @@ int main(int argc, char const *argv[]) {
         printf("%lf\t%lf\n", X[i], Y[i]);
     }
 
-    // Guardar x[i] y Y[i] en results.txt
-    guardar_en_txt(X, Y, n);
+    // Guardar la tabla completa en results.txt:
+    // x, y exacta, y numérica y error exacto.
+    guardar_resultados(X, Y, n);
 
     // Finalmente, se intenta ejecutar un script de Python para graficar los resultados
-    system("python ..\\graph_points.py");
+    system(COMANDO_GRAFICA);
 
     printf("\n¿Desea realizar otro calculo? (s/n): ");
     scanf(" %c", &continuar);
@@ -407,39 +471,51 @@ double f_prima(double x, double y) {
 
 
 /**
- * Tercera derivada de y(x)
- * Se calcula simbólicamente o usando la fórmula general para O(h³)
- * Si la función exacta es y(x) = 1/(x²+1), entonces y''' es compleja.
- * El código original usaba la tercera derivada para y(x)=e^{-x^2}, que es:
- * y''' = 4xy(3 - 2x²)
- * Dejaré la función original por si es la que se desea usar, aunque no corresponde a y_exacta.
+ * Tercera derivada de la solución exacta, y'''(x).
+ * Se usa para estimar el error de truncamiento local de Heun y Punto Medio.
+ *
+ * Para el problema actual:
+ *   y(x) = ((x^2 + x + 2)^2) / 4
+ *   y'(x) = (2x + 1)(x^2 + x + 2) / 2
+ *   y''(x) = 3x^2 + 3x + 5/2
+ *   y'''(x) = 6x + 3
+ *
+ * IMPORTANTE: si se cambia y_exacta(), también hay que cambiar esta función.
+ * El parámetro y se mantiene por compatibilidad con la firma, pero no se usa.
  */
 double y3_prima(double x, double y) {
-    // Tercera derivada aproximada para f(x,y) = (2x+1)*sqrt(y)
-    // Cálculo simplificado basado en la cadena de derivadas
-    double sqrt_y = sqrt(y);
-    return 2.0 * sqrt_y + (2.0*x + 1.0)*(2.0*x + 1.0)/(4.0*sqrt_y);
+    (void)y;
+    return 6.0 * x + 3.0;
 }
 
 
 double paso_rk4(double x, double y, double paso) {
+    // Un paso completo de RK4. Se calculan las cuatro pendientes:
+    // k1 al inicio, k2 y k3 en el punto medio, k4 al final del paso.
     double k1 = f(x, y);
     double k2 = f(x + paso/2.0, y + (paso/2.0) * k1);
     double k3 = f(x + paso/2.0, y + (paso/2.0) * k2);
     double k4 = f(x + paso,      y + paso * k3);
+    // Combinación ponderada: (k1 + 2k2 + 2k3 + k4) / 6
     return y + (paso/6.0) * (k1 + 2.0*k2 + 2.0*k3 + k4);
 }
 
 
-void guardar_en_txt(double X[], double Y[], int n) {
+void guardar_resultados(double X[], double Y[], int n) {
     FILE *archivo = fopen("results.txt", "w");
     if (archivo == NULL) {
         printf("Error: No se pudo crear el archivo.\n");
         exit(1);
     }
 
+    // Encabezado de la tabla. Las columnas se separan con tabulaciones.
+    fprintf(archivo, "x\ty_exacta\ty_numerica\terror_exacto\n");
+
     for (int i = 0; i <= n; i++) {
-        fprintf(archivo, "%lf\t%lf\n", X[i], Y[i]);
+        // Para cada punto se calcula la solución exacta y el error absoluto.
+        double y_exacta_i = y_exacta(X[i]);
+        double error_i = fabs(y_exacta_i - Y[i]);
+        fprintf(archivo, "%lf\t%lf\t%lf\t%lf\n", X[i], y_exacta_i, Y[i], error_i);
     }
 
     fclose(archivo);
@@ -452,6 +528,7 @@ void guardar_en_txt_con_nombre(double X[], double Y[], int n, const char* filena
         exit(1);
     }
 
+    // Se guardan dos columnas: x y el factor Q correspondiente.
     for (int i = 0; i <= n; i++) {
         fprintf(archivo, "%lf\t%lf\n", X[i], Y[i]);
     }
@@ -459,15 +536,36 @@ void guardar_en_txt_con_nombre(double X[], double Y[], int n, const char* filena
     fclose(archivo);
 }
 
+/*
+ * Ejecuta graph_convergence.py con el archivo de convergencia del método
+ * seleccionado. Se intenta primero en la carpeta actual y luego en la padre.
+ */
+void ejecutar_grafica_convergencia(const char *archivo_datos) {
+    char comando[512];
+#ifdef _WIN32
+    snprintf(comando, sizeof(comando),
+             "python graph_convergence.py %s || python ..\\graph_convergence.py %s",
+             archivo_datos, archivo_datos);
+#else
+    snprintf(comando, sizeof(comando),
+             "python3 graph_convergence.py %s || python3 ../graph_convergence.py %s",
+             archivo_datos, archivo_datos);
+#endif
+    system(comando);
+}
+
 // ------------------------------------------
 // CÁLCULO DE FACTORES DE CONVERGENCIA (Q)
 // ------------------------------------------
 
 void factor_convergencia_euler(int n1, double h1, double X0, double Xf, double Y0) {
+    (void)Xf;
     double h2 = h1 / 2.0;
     double h3 = h1 / 4.0;
     // La capacidad de los arrays debe ser validada para evitar desbordamiento
-    if (4 * n1 + 1 > MAX_SIZE * 4) {
+    // Validación: con n1 = MAX_SIZE se usan hasta 4*n1 = 800 subintervalos,
+    // y los arreglos Yh4/Xh4 tienen MAX_SIZE*4 + 1 = 801 elementos.
+    if (n1 > MAX_SIZE) {
         printf("Error: n es demasiado grande para los cálculos de convergencia.\n");
         return;
     }
@@ -502,7 +600,8 @@ void factor_convergencia_euler(int n1, double h1, double X0, double Xf, double Y
     printf("\n%-10s %-15s %-15s\n", "i", "x_i", "Q_i");
     printf("------------------------------------------\n");
 
-    // Cálculo del factor de convergencia Q en los puntos X del paso h
+    // Factor de convergencia: Q = log(|Yh - Yh2| / |Yh2 - Yh4|) / log(2).
+    // Si Q se aproxima al orden del método, la implementación es consistente.
     Q[0] = 0.0;
     for (int i = 1; i <= n1; i++) {
         int idx2 = 2*i;    // posición equivalente para h/2
@@ -510,7 +609,8 @@ void factor_convergencia_euler(int n1, double h1, double X0, double Xf, double Y
         double num = fabs(Yh[i] - Yh2[idx2]);
         double den = fabs(Yh2[idx2] - Yh4[idx4]);
 
-        if (den > 1e-12) { // Evitar división por cero o errores de muy bajo valor
+        // Si num o den son casi cero, Q no es confiable y se reporta N/A.
+        if (den > 1e-12 && num > 1e-12) {
             Q[i] = log(num / den) / log(2.0);
             printf("%-10d %-15lf %-15lf\n", i, Xh[i], Q[i]);
         } else {
@@ -521,13 +621,16 @@ void factor_convergencia_euler(int n1, double h1, double X0, double Xf, double Y
 
     guardar_en_txt_con_nombre(Xh, Q, n1, "convergence_euler.txt");
 
-    system("python ..\\graph_convergence.py");
+    ejecutar_grafica_convergencia("convergence_euler.txt");
 }
 
 void factor_convergencia_heun(int n1, double h1, double X0, double Xf, double Y0) {
+    (void)Xf;
     double h2 = h1 / 2.0;
     double h3 = h1 / 4.0;
-    if (4 * n1 + 1 > MAX_SIZE * 4) {
+    // Validación: con n1 = MAX_SIZE se usan hasta 4*n1 = 800 subintervalos,
+    // y los arreglos Yh4/Xh4 tienen MAX_SIZE*4 + 1 = 801 elementos.
+    if (n1 > MAX_SIZE) {
         printf("Error: n es demasiado grande para los cálculos de convergencia.\n");
         return;
     }
@@ -563,6 +666,8 @@ void factor_convergencia_heun(int n1, double h1, double X0, double Xf, double Y0
     printf("\n--- Factor de Convergencia (Heun) ---\n");
     printf("\n%-10s %-15s %-15s\n", "i", "x_i", "Q_i");
     printf("------------------------------------------\n");
+    // Factor de convergencia: Q = log(|Yh - Yh2| / |Yh2 - Yh4|) / log(2).
+    // Si Q se aproxima al orden del método, la implementación es consistente.
     Q[0] = 0.0;
 
     for (int i = 1; i <= n1; i++) {
@@ -571,7 +676,8 @@ void factor_convergencia_heun(int n1, double h1, double X0, double Xf, double Y0
         double num = fabs(Yh[i] - Yh2[idx2]);
         double den = fabs(Yh2[idx2] - Yh4[idx4]);
 
-        if (den > 1e-12) {
+        // Si num o den son casi cero, Q no es confiable y se reporta N/A.
+        if (den > 1e-12 && num > 1e-12) {
             Q[i] = log(num / den) / log(2.0);
             printf("%-10d %-15lf %-15lf\n", i, Xh[i], Q[i]);
         } else {
@@ -582,13 +688,16 @@ void factor_convergencia_heun(int n1, double h1, double X0, double Xf, double Y0
 
     guardar_en_txt_con_nombre(Xh, Q, n1, "convergence_heun.txt");
 
-    system("python ..\\graph_convergence.py");
+    ejecutar_grafica_convergencia("convergence_heun.txt");
 }
 
 void factor_convergencia_punto_medio(int n1, double h1, double X0, double Xf, double Y0) {
+    (void)Xf;
     double h2 = h1 / 2.0;
     double h3 = h1 / 4.0;
-    if (4 * n1 + 1 > MAX_SIZE * 4) {
+    // Validación: con n1 = MAX_SIZE se usan hasta 4*n1 = 800 subintervalos,
+    // y los arreglos Yh4/Xh4 tienen MAX_SIZE*4 + 1 = 801 elementos.
+    if (n1 > MAX_SIZE) {
         printf("Error: n es demasiado grande para los cálculos de convergencia.\n");
         return;
     }
@@ -627,6 +736,8 @@ void factor_convergencia_punto_medio(int n1, double h1, double X0, double Xf, do
     printf("\n--- Factor de Convergencia (Punto Medio) ---\n");
     printf("\n%-10s %-15s %-15s\n", "i", "x_i", "Q_i");
     printf("------------------------------------------\n");
+    // Factor de convergencia: Q = log(|Yh - Yh2| / |Yh2 - Yh4|) / log(2).
+    // Si Q se aproxima al orden del método, la implementación es consistente.
     Q[0] = 0.0;
 
     for (int i = 1; i <= n1; i++) {
@@ -635,7 +746,8 @@ void factor_convergencia_punto_medio(int n1, double h1, double X0, double Xf, do
         double num = fabs(Yh[i] - Yh2[idx2]);
         double den = fabs(Yh2[idx2] - Yh4[idx4]);
 
-        if (den > 1e-12) {
+        // Si num o den son casi cero, Q no es confiable y se reporta N/A.
+        if (den > 1e-12 && num > 1e-12) {
             Q[i] = log(num / den) / log(2.0);
             printf("%-10d %-15lf %-15lf\n", i, Xh[i], Q[i]);
         } else {
@@ -646,13 +758,16 @@ void factor_convergencia_punto_medio(int n1, double h1, double X0, double Xf, do
 
     guardar_en_txt_con_nombre(Xh, Q, n1, "convergence_midpoint.txt");
 
-    system("python ..\\graph_convergence.py");
+    ejecutar_grafica_convergencia("convergence_midpoint.txt");
 }
 
 void factor_convergencia_rk4(int n1, double h1, double X0, double Xf, double Y0) {
+    (void)Xf;
     double h2 = h1 / 2.0;
     double h3 = h1 / 4.0;
-    if (4 * n1 + 1 > MAX_SIZE * 4) {
+    // Validación: con n1 = MAX_SIZE se usan hasta 4*n1 = 800 subintervalos,
+    // y los arreglos Yh4/Xh4 tienen MAX_SIZE*4 + 1 = 801 elementos.
+    if (n1 > MAX_SIZE) {
         printf("Error: n es demasiado grande para los cálculos de convergencia.\n");
         return;
     }
@@ -685,6 +800,8 @@ void factor_convergencia_rk4(int n1, double h1, double X0, double Xf, double Y0)
     printf("\n--- Factor de Convergencia (Runge-Kutta 4) ---\n");
     printf("\n%-10s %-15s %-15s\n", "i", "x_i", "Q_i");
     printf("------------------------------------------\n");
+    // Factor de convergencia: Q = log(|Yh - Yh2| / |Yh2 - Yh4|) / log(2).
+    // Si Q se aproxima al orden del método, la implementación es consistente.
     Q[0] = 0.0;
 
     for (int i = 1; i <= n1; i++) {
@@ -693,7 +810,8 @@ void factor_convergencia_rk4(int n1, double h1, double X0, double Xf, double Y0)
         double num = fabs(Yh[i] - Yh2[idx2]);
         double den = fabs(Yh2[idx2] - Yh4[idx4]);
 
-        if (den > 1e-12) {
+        // Si num o den son casi cero, Q no es confiable y se reporta N/A.
+        if (den > 1e-12 && num > 1e-12) {
             Q[i] = log(num / den) / log(2.0);
             printf("%-10d %-15lf %-15lf\n", i, Xh[i], Q[i]);
         } else {
@@ -704,5 +822,5 @@ void factor_convergencia_rk4(int n1, double h1, double X0, double Xf, double Y0)
 
     guardar_en_txt_con_nombre(Xh, Q, n1, "convergence_rk4.txt");
 
-    system("python ..\\graph_convergence.py");
+    ejecutar_grafica_convergencia("convergence_rk4.txt");
 }

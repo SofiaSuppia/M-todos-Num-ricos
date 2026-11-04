@@ -1,13 +1,40 @@
 #ifndef ELIMINACION_GAUSSIANA_H
 #define ELIMINACION_GAUSSIANA_H
 
+/*
+ * ============================================================================
+ * ELIMINACION GAUSSIANA CON SUSTITUCION HACIA ATRAS
+ * ============================================================================
+ *
+ * MAPA DE CALCULOS
+ * ----------------
+ * - DERIVADAS: este archivo no calcula derivadas.
+ * - INTEGRALES: este archivo no calcula integrales.
+ * - SUMATORIAS:
+ *     La unica sumatoria esta en la sustitucion hacia atras. Para cada fila i
+ *     se acumula:
+ *         sum = b[i] - a[i][i+1]*X[i+1] - ... - a[i][n-1]*X[n-1]
+ *     usando el bucle "for (j = i+1; j < n; j++) sum -= a[i][j] * X[j];"
+ * - PRODUCTO:
+ *     El determinante se calcula multiplicando la diagonal de la matriz
+ *     triangular: product *= a[i][i].
+ * ============================================================================
+ */
+
 // Incluye las librerías estándar necesarias
 #include <stdio.h> // Para entrada/salida (printf)
 #include <stdlib.h> // Para funciones generales (exit)
 #include <math.h> // Para funciones matemáticas (fabs)
 
-// Define el tamaño máximo de la matriz (100x100 + 1 para manejar índices desde 1 si fuera necesario, aunque el código usa 0-indexing)
-#define MAX_SIZE 100
+/*
+ * Tamano maximo de la matriz.
+ * Si el archivo que incluye gauss.h ya definio MAX_SIZE, se respeta ese valor.
+ * Por defecto se usa 200 para que el spline cubico pueda manejar hasta 50
+ * puntos: 4*(50-1) = 196 incognitas.
+ */
+#ifndef MAX_SIZE
+#define MAX_SIZE 200
+#endif
 
 /**
  * @brief Resuelve un sistema de ecuaciones lineales Ax = b utilizando la eliminación de Gauss con pivoteo parcial.
@@ -101,8 +128,9 @@ void gauss_elimination(int n, double a[MAX_SIZE+1][MAX_SIZE+1], double b[MAX_SIZ
     
     // Recorre las filas de abajo hacia arriba, desde la penúltima hasta la primera
     for(int i = n-2; i >= 0; i--) {
+        // SUMATORIA: comienza con b[i] y luego resta los terminos conocidos.
         sum = b[i]; // Inicializa la suma con el valor del vector b
-        
+
         // Resta los términos de las incógnitas ya calculadas (de derecha a izquierda)
         for(int j = i+1; j < n; j++) {
             sum -= a[i][j] * X[j];

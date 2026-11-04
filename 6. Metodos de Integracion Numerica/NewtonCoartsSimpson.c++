@@ -9,6 +9,27 @@
 // Se asume que este archivo existe y contiene la funcion gauss_elimination
 #include "gauss.h" 
 
+// ============================================================
+// MAPA DE OPERACIONES DE ESTE ARCHIVO
+// ------------------------------------------------------------
+// - f(x): funcion que se integra ......................... f()
+// - Integral (Simpson compuesto con funcion) ............. case 1
+//     * suma de extremos ................................. sum = f(a)+f(b)
+//     * paso h ........................................... h = (b-a)/n
+//     * sumatoria interna ................................ for (...)
+//     * termino final f(b-h) ............................. sum += 4*f(b-h)
+//     * integral final ................................... sum = (h/3)*sum
+// - Integral (Simpson compuesto con tabla) ............... case 2
+//     * lectura de X[i], Y[i] ............................ read_data_points()
+//     * verificacion de equiespaciado .................... for (...)
+//     * cantidad par de subintervalos .................... if ((n-1)%2==0)
+//     * uso directo de la tabla .......................... new_X[i]=X[i]
+//     * spline si no es equiespaciado .................... gauss_elimination()
+//     * sumatoria e integral de Simpson .................. PASO 6
+// - Integral (Simpson 1/3 simple) ........................ opcion 2
+// - Derivadas numericas para los errores ................. 2da y 4ta derivada
+// ============================================================
+
 /**
  * Funcion para leer pares de datos Xi, Yi desde un archivo
  * Formato esperado: la primera linea contiene el numero de puntos, luego pares xi yi
@@ -96,30 +117,51 @@ int main(int argc, char const *argv[]) {
         
         switch(opcion) {
             case 1: {
-                // Valores para dividir el intervalo de integracion [a,b]
-                double x_arr[MAX_POINTS];
                 printf("\nInserte los limites de integracion (a b): ");
                 scanf("%lf %lf", &a, &b);
                 printf("Por favor ingrese el numero de subintervalos (debe ser un numero par): ");
                 scanf("%d", &subintervalos);
                 
+                if(subintervalos <= 0) {
+                    printf("ERROR: El numero de subintervalos debe ser mayor que 0.\n");
+                    continue;
+                }
                 if(subintervalos % 2 != 0) {
                     printf("ERROR: El numero de subintervalos debe ser PAR.\n");
                     continue;
                 }
                 
-                // Calcular I con la regla de Simpson Compuesto
+                // ============================================================
+                // SIMPSON COMPUESTO CON FUNCION
+                // Formula:
+                // I = h/3 * [ f(a) + f(b)
+                //             + sum(2*f(x_i) + 4*f(x_i - h))
+                //             + 4*f(b-h) ]
+                // con h = (b-a)/n  y  n PAR
+                // ============================================================
+
+                // OPERACION: suma de los extremos -> f(a) + f(b)
                 sum = f(a) + f(b);
-                h = (b - a) / subintervalos;        
-                for(int i = 1; i < subintervalos; i++) {
-                    x_arr[i] = a + (i * h);
-                    if (i % 2 == 0) {
-                        sum += 2 * f(x_arr[i]);  // índices pares (múltiplos de 2)
-                    } else {
-                        sum += 4 * f(x_arr[i]);  // índices impares
-                    }
+
+                // OPERACION: calculo del paso -> h = (b-a)/n
+                h = (b - a) / subintervalos;
+
+                // OPERACION: sumatoria de los puntos internos
+                // Recorre i = 1 .. n/2 - 1.
+                // En cada vuelta:
+                //   x     = a + 2*i*h   -> punto de indice par
+                //   x - h = a + (2i-1)h -> punto de indice impar anterior
+                // Coeficientes de Simpson: 2 para el par y 4 para el impar.
+                for(int i = 1; i <= subintervalos/2 - 1; i++) {
+                    x = a + 2 * i * h;
+                    sum += 2 * f(x) + 4 * f(x - h);
                 }
-                sum = (h/3) * sum;
+
+                // OPERACION: ultimo punto impar (x[n-1] = b-h), coeficiente 4
+                sum += 4 * f(b - h);
+
+                // OPERACION: integral final -> I = (h/3) * suma
+                sum = (h / 3.0) * sum;
 
                 // Imprimir integral usando Simpson Compuesto
                 printf("La integral es: %lf\n", sum);
@@ -130,12 +172,15 @@ int main(int argc, char const *argv[]) {
                 double A[MAX_SIZE+1][MAX_SIZE+1], b_vec[MAX_SIZE+1], solution[MAX_SIZE+1];
                 // Puntos de datos a leer desde el archivo de texto
                 double X[MAX_POINTS], Y[MAX_POINTS];
-                // Puntos de datos para calcular la integral
-                double new_X[MAX_POINTS], new_Y[MAX_POINTS];
-                // Numero de puntos
-                int n;
+                // Puntos para calcular la integral (uno mas por si hay que agregar un punto)
+                double new_X[MAX_POINTS + 1], new_Y[MAX_POINTS + 1];
+                // Numero de puntos y de subintervalos
+                int n, subintervalos;
+                // Bandera para saber si los puntos estan equiespaciados
+                int equiespaciados = 1;
 
-                // Leer puntos de datos desde archivo
+                // PASO 1 (lectura): leer X[i], Y[i] desde el archivo
+                // El archivo tiene: primera linea = n, luego n pares "x y"
                 if (!read_data_points("../data.txt", X, Y, &n)) {
                     printf("Fallo al leer datos del archivo.\n");
                     continue;
@@ -143,98 +188,148 @@ int main(int argc, char const *argv[]) {
                 // Imprimir los puntos de datos
                 print_data_points(X, Y, n);
 
-                // Inicializar A y b
-                for (int i = 0; i < 4*(n-1); i++) {
-                    b_vec[i] = 0.0;
-                    for (int j = 0; j < 4*(n-1); j++) {
-                        A[i][j] = 0.0;
+                if (n < 2) {
+                    printf("Se necesitan al menos 2 puntos para integrar.\n");
+                    break;
+                }
+
+                // OPERACION: paso promedio de la tabla -> h = (x[n-1]-x[0])/(n-1)
+                double h_original = (X[n - 1] - X[0]) / (n - 1);
+
+                // OPERACION: verificar equiespaciado
+                // Se calcula cada diferencia hi = X[i+1]-X[i] y se compara con h_original.
+                // Si |hi - h_original| supera la tolerancia, NO estan equiespaciados.
+                for (int i = 0; i < n - 1; i++) {
+                    double hi = X[i + 1] - X[i];
+                    if (fabs(hi - h_original) > 1e-8 * (1.0 + fabs(h_original))) {
+                        equiespaciados = 0;
+                        break;
                     }
                 }
 
-                // Determinar el número de subintervalos. Debe ser par para Simpson.
-                // Si n-1 (el número de intervalos iniciales) es par, lo usamos.
-                // Si n-1 es impar, usamos n (crearemos n puntos igualmente espaciados, resultando en n-1 intervalos)
-                if((n-1) % 2 == 0) {
-                    subintervalos = n-1;
+                // OPERACION: elegir cantidad de subintervalos PAR (exigencia de Simpson)
+                // Si n-1 es par, se usan los n puntos de la tabla (n-1 intervalos).
+                // Si n-1 es impar, se genera un punto mas con Spline (n intervalos).
+                if ((n - 1) % 2 == 0) {
+                    subintervalos = n - 1;
                 } else {
                     subintervalos = n;
                 }
 
-                // Calculamos A[4(n-1)][4(n-1)] y b[4(n-1)]
-                // (Mismas ecuaciones de contorno del Spline que en el caso 1)
-                for(int k = 0; k < n-1; k++) {
-                    for(int j = 0; j <= 3; j++) {
-                        A[2*k][4*k+j] = pow(X[k], 3-j);
-                    }
-                    b_vec[2*k] = Y[k];
-                
-                    for(int j = 0; j <= 3; j++) {
-                        A[2*k+1][4*k+j] = pow(X[k+1], 3-j);
-                    }
-                    b_vec[2*k+1] = Y[k+1];
-                }
-
-                // Siguientes n-2 ecuaciones: Continuidad de las primeras derivadas
-                for(int k = 0; k < n-2; k++) {
-                    int row = 2*(n-1) + k;
-                    for(int j = 0; j <= 2; j++) {
-                        A[row][4*k+j] = (3-j) * pow(X[k+1], 2-j);
-                    }
-                    for(int j = 0; j <= 2; j++) {
-                        A[row][4*(k+1)+j] = -(3-j) * pow(X[k+1], 2-j);
-                    }
-                    b_vec[row] = 0.0;
-                }
-
-                // Siguientes n-2 ecuaciones: Continuidad de las segundas derivadas
-                for(int k = 0; k < n-2; k++) {
-                    int row = 2*(n-1) + (n-2) + k;
-                    A[row][4*k] = 6 * X[k+1];
-                    A[row][4*k+1] = 2;
-                    A[row][4*(k+1)] = -6 * X[k+1];
-                    A[row][4*(k+1)+1] = -2;
-                    b_vec[row] = 0.0;
-                }
-
-                // Dos condiciones de contorno: Spline natural
-                int row1 = 4*(n-1) - 2;
-                int row2 = 4*(n-1) - 1;
-
-                // Segunda derivada = 0 en X[0]
-                A[row1][0] = 6 * X[0];
-                A[row1][1] = 2;
-                b_vec[row1] = 0.0;
-
-                // Segunda derivada = 0 en X[n-1]
-                A[row2][4*(n-2)] = 6 * X[n-1];
-                A[row2][4*(n-2)+1] = 2;
-                b_vec[row2] = 0.0;
-
-                // Resolver el sistema
-                gauss_elimination(4*(n-1), A, b_vec, solution);
-
-
-                // Dividir el intervalo [X[0], X[n-1]] en 'subintervalos' de igual longitud
+                // OPERACION: paso de integracion -> h = (x[n-1]-x[0])/subintervalos
                 h = (X[n - 1] - X[0]) / subintervalos;
 
-                // Calcular X[i] y Y[i] igualmente espaciados
-                for(int i = 0; i <= subintervalos; i++) {
-                    new_X[i] = X[0] + i * h;
-                    new_Y[i] = evaluate_spline(X, solution, n, new_X[i]);
-                }
+                if (equiespaciados && subintervalos == n - 1) {
+                    // OPERACION: usar directamente los datos de la tabla
+                    // new_X[i] = X[i]  y  new_Y[i] = Y[i]
+                    printf("Los puntos están equiespaciados. Se usa la tabla directamente.\n");
+                    for (int i = 0; i < n; i++) {
+                        new_X[i] = X[i];
+                        new_Y[i] = Y[i];
+                    }
+                } else {
+                    // ============================================================
+                    // OPERACION: interpolar con Spline cubico si:
+                    //   - los puntos NO estan equiespaciados, o
+                    //   - la cantidad de intervalos de la tabla es impar.
+                    // Se arma el sistema A*solution = b_vec y se resuelve con Gauss.
+                    // A: matriz de coeficientes; b_vec: terminos independientes;
+                    // solution: coeficientes (a,b,c,d) de cada tramo del spline.
+                    // ============================================================
+                    printf("Se interpola con Spline para obtener puntos equiespaciados.\n");
 
-                // Calcular I aplicando la regla de Simpson Compuesto
-                sum = new_Y[0] + new_Y[subintervalos];
-                for(int i = 1; i < subintervalos; i++) {
-                    if(i % 2 == 0) {
-                        sum += 2 * new_Y[i]; // Coeficiente 2 para índices pares
-                    } else {
-                        sum += 4 * new_Y[i]; // Coeficiente 4 para índices impares
+                    // OPERACION: inicializar en cero la matriz A y el vector b_vec
+                    for (int i = 0; i < 4*(n-1); i++) {
+                        b_vec[i] = 0.0;
+                        for (int j = 0; j < 4*(n-1); j++) {
+                            A[i][j] = 0.0;
+                        }
+                    }
+
+                    // Primeras 2(n-1) ecuaciones: cada spline pasa por sus dos extremos
+                    for(int k = 0; k < n-1; k++) {
+                        for(int j = 0; j <= 3; j++) {
+                            A[2*k][4*k+j] = pow(X[k], 3-j);
+                        }
+                        b_vec[2*k] = Y[k];
+
+                        for(int j = 0; j <= 3; j++) {
+                            A[2*k+1][4*k+j] = pow(X[k+1], 3-j);
+                        }
+                        b_vec[2*k+1] = Y[k+1];
+                    }
+
+                    // Siguientes n-2 ecuaciones: continuidad de las primeras derivadas
+                    for(int k = 0; k < n-2; k++) {
+                        int row = 2*(n-1) + k;
+                        for(int j = 0; j <= 2; j++) {
+                            A[row][4*k+j] = (3-j) * pow(X[k+1], 2-j);
+                        }
+                        for(int j = 0; j <= 2; j++) {
+                            A[row][4*(k+1)+j] = -(3-j) * pow(X[k+1], 2-j);
+                        }
+                        b_vec[row] = 0.0;
+                    }
+
+                    // Siguientes n-2 ecuaciones: continuidad de las segundas derivadas
+                    for(int k = 0; k < n-2; k++) {
+                        int row = 2*(n-1) + (n-2) + k;
+                        A[row][4*k] = 6 * X[k+1];
+                        A[row][4*k+1] = 2;
+                        A[row][4*(k+1)] = -6 * X[k+1];
+                        A[row][4*(k+1)+1] = -2;
+                        b_vec[row] = 0.0;
+                    }
+
+                    // Dos condiciones de contorno: Spline natural
+                    int row1 = 4*(n-1) - 2;
+                    int row2 = 4*(n-1) - 1;
+
+                    // Segunda derivada = 0 en X[0]
+                    A[row1][0] = 6 * X[0];
+                    A[row1][1] = 2;
+                    b_vec[row1] = 0.0;
+
+                    // Segunda derivada = 0 en X[n-1]
+                    A[row2][4*(n-2)] = 6 * X[n-1];
+                    A[row2][4*(n-2)+1] = 2;
+                    b_vec[row2] = 0.0;
+
+                    // OPERACION: resolver el sistema A*solution = b_vec
+                    // con eliminacion Gaussiana (funcion incluida desde gauss.h)
+                    gauss_elimination(4*(n-1), A, b_vec, solution);
+
+                    // OPERACION: generar los puntos equiespaciados
+                    // xp[i] = X[0] + i*h
+                    // yp[i] = Spline(xp[i])  (evaluar el spline en xp[i])
+                    for(int i = 0; i <= subintervalos; i++) {
+                        new_X[i] = X[0] + i * h;
+                        new_Y[i] = evaluate_spline(X, solution, n, new_X[i]);
                     }
                 }
-                sum = (h/3) * sum;
 
-                // Imprimir integral usando Simpson Compuesto con puntos igualmente espaciados creados
+                // ============================================================
+                // PASO 6 (integral): Simpson Compuesto
+                // I = h/3 * [ y0 + yn + sum(2*y_{2i} + 4*y_{2i-1}) + 4*y_{n-1} ]
+                // ============================================================
+
+                // OPERACION: suma de extremos -> y0 + yn
+                sum = new_Y[0] + new_Y[subintervalos];
+
+                // OPERACION: sumatoria interna
+                // new_Y[2*i]   -> punto par   -> coeficiente 2
+                // new_Y[2*i-1] -> punto impar -> coeficiente 4
+                for(int i = 1; i <= subintervalos/2 - 1; i++) {
+                    sum += 2 * new_Y[2*i] + 4 * new_Y[2*i - 1];
+                }
+
+                // OPERACION: ultimo punto impar -> coeficiente 4
+                sum += 4 * new_Y[subintervalos - 1];
+
+                // OPERACION: integral final -> I = (h/3) * suma
+                sum = (h / 3.0) * sum;
+
+                // Imprimir integral usando Simpson Compuesto
                 printf("La integral es: %lf\n", sum);
                 break;
             }
@@ -243,7 +338,11 @@ int main(int argc, char const *argv[]) {
                 continue;
         }
     } else if(opcion == 2) {
-        // Regla de Simpson 1/3 Simple. Funciona perfectamente con polinomios de grado 3 o menor
+        // ============================================================
+        // SIMPSON 1/3 SIMPLE + CALCULO DE ERRORES
+        // Integral: I = (b-a)/6 * [f(a) + 4*f((a+b)/2) + f(b)]
+        // Error aproximado: |-(1/2880) * f''''(c) * (b-a)^5|
+        // ============================================================
         // Punto para calcular el error
         double c;
         // Integral de Simpson 1/3 aproximada
@@ -262,10 +361,18 @@ int main(int argc, char const *argv[]) {
         printf("Inserte el valor exacto de la integral para calcular el error exacto: ");
         scanf("%lf", &Iexact);
 
-        // Calcular I
+        // OPERACION: integral de Simpson 1/3 simple
+        // I = (b-a)/6 * [ f(a) + 4*f((a+b)/2) + f(b) ]
         Iaprox = ((b-a)/6.0) * (f(a) + 4.0*f((a+b)/2.0) + f(b));
+
+        // OPERACION: error aproximado de Simpson 1/3
+        // |-(1/2880) * (b-a)^5 * f''''(c)|
         aprox_error = fabs(-(1.0/2880.0) * pow(b-a, 5) * fourth_derivative(f, c));
+
+        // OPERACION: error exacto -> |Iexacta - Iaprox|
         exact_error = fabs(Iexact - Iaprox);
+
+        // OPERACION: error porcentual -> |Iexacta - Iaprox| / |Iexacta| * 100
         porcentual_error = (fabs(Iexact - Iaprox) / fabs(Iexact)) * 100.0;
 
         // Imprimir resultados
@@ -293,23 +400,31 @@ int main(int argc, char const *argv[]) {
 }
 
 // Funcion para definir f(x)
+// OPERACION: aqui se define la curva que se va a integrar.
+// Cambiar esta linea si se quiere integrar otra funcion.
 double f(double x) {
-    // Ejemplo de funcion: sin(2x) * e^(-x)
     return (x * x) + 1.0;
 }
 
 // Implementacion de la segunda derivada por diferencia central
+// OPERACION: aproximar f''(x)
+// Formula: f''(x) ~= [f(x+h) - 2*f(x) + f(x-h)] / h^2
 double second_derivative(double (*func)(double), double x, double h) {
     return (func(x + h) - 2 * func(x) + func(x - h)) / (h * h);
 }
 
 // Implementacion de la cuarta derivada por diferencia central
+// OPERACION: aproximar f''''(x), usada para el error de Simpson 1/3
+// Formula: f''''(x) ~= [f(x-2h) - 4f(x-h) + 6f(x) - 4f(x+h) + f(x+2h)] / h^4
 double fourth_derivative(double (*func)(double), double x, double h) {
     return (func(x - 2*h) - 4*func(x - h) + 6*func(x) - 4*func(x + h) + func(x + 2*h)) / (pow(h, 4));
 }
 
 
 // Implementacion de la lectura de puntos
+// Formato del archivo:
+//   primera linea: n (cantidad de puntos)
+//   luego n lineas: x y
 int read_data_points(const char* filename, double X[], double Y[], int* n) {
     FILE *fp;
     
@@ -334,7 +449,7 @@ int read_data_points(const char* filename, double X[], double Y[], int* n) {
         return 0;
     }
     
-    // Leer los puntos de datos
+    // OPERACION: leer los n pares de datos (X[i], Y[i])
     for (int i = 0; i < *n; i++) {
         if (fscanf(fp, "%lf %lf", &X[i], &Y[i]) != 2) {
             printf("Error: No se puede leer el punto de datos %d\n", i + 1);
@@ -364,7 +479,7 @@ void print_data_points(double X[], double Y[], int n) {
 double evaluate_spline(double X[], double solution[], int n, double x) {
     int k;
 
-    // Encontrar el intervalo de spline correcto
+    // OPERACION: encontrar el intervalo [X[k], X[k+1]] que contiene a x
     if (x <= X[0]) {
         k = 0;  // Usar el primer spline para x menor o igual al primer punto
     } else if (x >= X[n-1]) {
@@ -377,7 +492,9 @@ double evaluate_spline(double X[], double solution[], int n, double x) {
         }
     }
 
-    // Evaluar S_k(x) = a*x^3 + b*x^2 + c*x + d
+    // OPERACION: evaluar el polinomio del tramo k
+    // S_k(x) = a*x^3 + b*x^2 + c*x + d
+    // solution[4k], solution[4k+1], solution[4k+2], solution[4k+3] son a, b, c, d
     double y = solution[4*k] * pow(x, 3) +
                 solution[4*k+1] * pow(x, 2) +
                 solution[4*k+2] * x +
