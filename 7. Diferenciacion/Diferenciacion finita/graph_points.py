@@ -1,9 +1,13 @@
 # Packages
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 # Read data
-data = np.loadtxt('C:\\Users\\sofim\\OneDrive\\Documentos\\M-todos-Num-ricos\\7. Diferenciacion\\Diferenciacion finita\\output\\results.txt') # Read txt file
+BASE_DIR = Path(__file__).resolve().parent
+RUTA_DATOS = BASE_DIR / "output" / "results.txt"
+data = np.loadtxt(RUTA_DATOS) # Read txt file
 x = data[:,0] # First column
 y = data[:,1] # Second column
 
@@ -14,6 +18,11 @@ plt.ylim(min(y)-0.5, max(y)+0.5) # Y-axis limits based on data
 plt.title('Plot') # Title of the graph
 plt.xlabel('X') # X-axis label
 plt.ylabel('Y') # Y-axis label
+ruta_salida = Path(__file__).resolve().parent / "grafico_diferenciacion.png"
+
+plt.savefig(ruta_salida, dpi=300, bbox_inches="tight")
+print(f"Gráfico guardado en: {ruta_salida}")
+
 plt.show()
 
 """

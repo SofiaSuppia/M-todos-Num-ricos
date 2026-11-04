@@ -3,6 +3,8 @@
 # ==============================
 
 import sys
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -10,10 +12,14 @@ import matplotlib.pyplot as plt
 #   python3 graph_convergence.py convergence_euler.txt
 # Si no se pasa argumento, se usa convergence_rk4.txt por defecto.
 FILE_NAME = sys.argv[1] if len(sys.argv) > 1 else 'convergence_rk4.txt'
+BASE_DIR = Path(__file__).resolve().parent
+RUTA_DATOS = Path(FILE_NAME)
+if not RUTA_DATOS.is_absolute():
+    RUTA_DATOS = BASE_DIR / RUTA_DATOS
 
 try:
     # Los archivos de convergencia del código escalar tienen dos columnas: x, Q
-    data = np.loadtxt(FILE_NAME)
+    data = np.loadtxt(RUTA_DATOS)
 except FileNotFoundError:
     print(f"ERROR: El archivo '{FILE_NAME}' no fue encontrado.")
     print("Asegúrate de ejecutar el programa C/C++ que genera los datos de convergencia primero.")
@@ -52,6 +58,13 @@ try:
     plt.ylim(min(y_convergence) - 0.2, max(y_convergence) + 0.2)
 except ValueError:
     print("Advertencia: no hay suficientes puntos para establecer los límites del gráfico.")
+
+nombre_archivo = Path(FILE_NAME).stem
+nombre_salida = nombre_archivo.replace("convergence_", "grafico_convergencia_") + ".png"
+ruta_salida = Path(__file__).resolve().parent / nombre_salida
+
+plt.savefig(ruta_salida, dpi=300, bbox_inches="tight")
+print(f"Gráfico guardado en: {ruta_salida}")
 
 plt.show()
 

@@ -2,13 +2,18 @@
 # Comparación: solución numérica vs. solución exacta
 # ==============================
 
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 # results.txt tiene el encabezado:
 # x    y_exacta    y_numerica    error_exacto
+BASE_DIR = Path(__file__).resolve().parent
+RUTA_DATOS = BASE_DIR / "results.txt"
+
 try:
-    data = np.loadtxt('results.txt', skiprows=1)
+    data = np.loadtxt(RUTA_DATOS, skiprows=1)
 except FileNotFoundError:
     print("ERROR: El archivo 'results.txt' no se encontró.")
     print("Asegúrate de ejecutar el programa C/C++ primero para generar los datos.")
@@ -46,6 +51,11 @@ try:
              max(max(y_num), max(y_exact)) + 0.1)
 except ValueError:
     pass
+
+ruta_salida = Path(__file__).resolve().parent / "grafico_solucion_edo.png"
+
+plt.savefig(ruta_salida, dpi=300, bbox_inches="tight")
+print(f"Gráfico guardado en: {ruta_salida}")
 
 plt.show()
 
